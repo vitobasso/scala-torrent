@@ -1,5 +1,9 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
+import java.nio.charset.StandardCharsets.ISO_8859_1
+
+import com.dominikgruber.scalatorrent.actor.Hex
+
 /**
  * The handshake is a required message and must be the first message transmitted
  * by the client. It is (49+len(pstr)) bytes long.
@@ -21,34 +25,41 @@ package com.dominikgruber.scalatorrent.peerwireprotocol
  * In version 1.0 of the BitTorrent protocol, pstrlen = 19, and pstr =
  * "BitTorrent protocol".
  */
-case class Handshake(infoHash: Vector[Byte], peerId: String) {
+case class Handshake(pstr: String, extension: Vector[Byte], peerId: String, infoHash: Vector[Byte]) {
 
   def marshal: Vector[Byte] =
     Vector.concat(
-      Vector[Byte](19),
-      "BitTorrent protocol".getBytes("ISO-8859-1"),
-      Vector.fill[Byte](8)(0),
+      Vector[Byte](pstr.length.toByte),
+      pstr.getBytes(ISO_8859_1),
+      extension,
       infoHash,
-      peerId.getBytes("ISO-8859-1")
+      peerId.getBytes(ISO_8859_1)
     )
 
   /**
    * Hex string representation of the SHA1 value
    */
   lazy val infoHashString: String = infoHash.map("%02X" format _).mkString
+
+  override def toString: String = s"Handshake($pstr, ${Hex(extension)}, $peerId, $infoHashString)"
 }
 
 object Handshake {
+
+  //TODO make cleaner, use parser. https://github.com/harrah/sbinary
   def unmarshall(message: Vector[Byte]): Option[Handshake] = {
-    val len = message.length
-    if (len == 68) { //TODO accept protocol extensions
-      val pstrlen = message(0)
-      val pstr = new String(message.slice(1, 1 + pstrlen).toArray, "ISO-8859-1") //TODO replace with StandardCharsets
-      if (pstr == "BitTorrent protocol") {
-        val infoHash = message.slice(len - 40, len - 20)
-        val peerId = new String(message.slice(len - 20, len).toArray, "ISO-8859-1")
-        Some(Handshake(infoHash, peerId))
-      } else None
+    val pstrlen = message(0)
+    if(message.length >= pstrlen + 49) {
+      val pstrEnd: Int = 1 + pstrlen
+      val pstr: String = new String(message.slice(1, pstrEnd).toArray, ISO_8859_1)
+      val extensionEnd: Int = pstrEnd + 8
+      val extension: Vector[Byte] = message.slice(pstrEnd, extensionEnd)
+      val infoHashEnd: Int = extensionEnd + 20
+      val infoHash: Vector[Byte] = message.slice(extensionEnd, infoHashEnd)
+      val peerIdEnd: Int = infoHashEnd + 20
+      val peerId: String = new String(message.slice(infoHashEnd, peerIdEnd).toArray, ISO_8859_1)
+      Some(Handshake(pstr, extension, peerId, infoHash))
     } else None
   }
+
 }

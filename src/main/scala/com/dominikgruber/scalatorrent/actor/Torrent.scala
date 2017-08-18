@@ -7,7 +7,7 @@ import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, BlockSize,
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed, TrackerResponseReceived}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece}
-import com.dominikgruber.scalatorrent.tracker.{TrackerResponseWithFailure, TrackerResponseWithSuccess}
+import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithFailure, TrackerResponseWithSuccess}
 import com.dominikgruber.scalatorrent.transfer.TransferStatus
 
 import scala.collection.BitSet
@@ -30,7 +30,7 @@ class Torrent(name: String, metaInfo: MetaInfo, peerId: String, coordinator: Act
   // Connect to Tracker
   val tracker: ActorRef = {
     val props = Props(classOf[Tracker], metaInfo, peerId, portIn)
-    context.actorOf(props, "tracker")
+    context.actorOf(props, s"tracker-${metaInfo.fileInfo.infoHashString}")
   }
 
   override def preStart(): Unit = {
@@ -43,9 +43,7 @@ class Torrent(name: String, metaInfo: MetaInfo, peerId: String, coordinator: Act
     case TrackerResponseReceived(res) => res match { // from Tracker
       case s: TrackerResponseWithSuccess =>
         log.debug(s"[$name] Request to Tracker successful: $res")
-        s.peers.foreach(peer => {
-          coordinator ! CreatePeerConnection(peer, metaInfo)
-        })
+        connectToPeers(s.peers)
         context become sharing
       case f: TrackerResponseWithFailure =>
         log.debug(s"[$name] Request to Tracker failed: ${f.reason}")
@@ -78,5 +76,14 @@ class Torrent(name: String, metaInfo: MetaInfo, peerId: String, coordinator: Act
         peerConnection ! SendToPeer(request)
       case None => //TODO fully downloaded
     }
+
+  def connectToPeers(peers: List[Peer]): Unit = {
+    val unique = peers.groupBy(_.address).map{
+      case (_, duplicates) => duplicates.head
+    }
+    unique.foreach{
+      peer => coordinator ! CreatePeerConnection(peer, metaInfo)
+    }
+  }
 
 }

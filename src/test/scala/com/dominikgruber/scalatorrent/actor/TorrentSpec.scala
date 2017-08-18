@@ -39,8 +39,8 @@ class TorrentSpec extends ActorSpec {
     }
 
     "create peer connections" in {
-      val peer1 = mock[Peer]
-      val peer2 = mock[Peer]
+      val peer1 = Peer(None, "ip1", 0)
+      val peer2 = Peer(None, "ip2", 0)
       torrent ! TrackerResponseReceived {
         TrackerResponseWithSuccess(0, None, None, 0, 0, List(peer1, peer2), None)
       }

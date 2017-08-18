@@ -4,7 +4,7 @@ import java.io.File
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.io.Tcp.{Bind, CommandFailed, Connected, Register}
+import akka.io.Tcp.{Bind, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
 import com.dominikgruber.scalatorrent.actor.Coordinator._
 import com.dominikgruber.scalatorrent.actor.PeerHandshaking.{BeginConnection, ReceiveConnection}
@@ -69,7 +69,6 @@ class Coordinator extends Actor {
     case Connected(remoteAddress, _) => // from Tcp
       val peerConnection = createPeerActor(remoteAddress)
       peerConnection ! ReceiveConnection(sender)
-      sender ! Register(peerConnection)
 
     case CommandFailed(_: Bind) => // from Tcp
       // TODO: Handle failure

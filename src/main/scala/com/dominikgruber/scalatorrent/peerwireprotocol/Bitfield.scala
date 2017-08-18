@@ -16,14 +16,14 @@ import akka.util.ByteStringBuilder
  * index 0. Bits that are cleared indicated a missing piece, and set bits
  * indicate a valid and available piece. Spare bits at the end are set to zero.
  */
-case class Bitfield(downloadedPieces: Vector[Boolean]) extends Message {
-  override def lengthPrefix = 1 + byteVectorLength(downloadedPieces.length)
+case class Bitfield(availablePieces: Vector[Boolean]) extends Message {
+  override def lengthPrefix = 1 + byteVectorLength(availablePieces.length)
   override def messageId = Some(Bitfield.MESSAGE_ID)
 
   override def marshal: Vector[Byte] = {
     val bsb = new ByteStringBuilder()
     bsb.putBytes(super.marshal.toArray)
-    bsb.putBytes(booleanToByteVector(downloadedPieces).toArray)
+    bsb.putBytes(booleanToByteVector(availablePieces).toArray)
     bsb.result().toVector
   }
 
@@ -40,7 +40,9 @@ case class Bitfield(downloadedPieces: Vector[Boolean]) extends Message {
   private def byteVectorLength(booleanVectorLength: Int): Int =
     Math.ceil(booleanVectorLength / 8.0).toInt
 
-  override def toString: String = s"BitField(...)"
+  val countAvailable: Int = availablePieces.count(identity)
+  val percentage: Float = countAvailable.toFloat/availablePieces.length
+  override def toString: String = s"Bitfield(${"%.0f" format percentage * 100}%)"
 }
 
 object Bitfield {

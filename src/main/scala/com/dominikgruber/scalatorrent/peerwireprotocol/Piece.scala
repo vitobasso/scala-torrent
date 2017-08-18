@@ -1,7 +1,8 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
-import akka.util.ByteStringBuilder
 import java.nio.ByteBuffer
+
+import akka.util.ByteStringBuilder
 
 /**
  * piece: <len=0009+X><id=7><index><begin><block>
@@ -24,7 +25,7 @@ case class Piece(index: Int, begin: Int, block: Vector[Byte]) extends Message {
     bsb.result().toVector
   }
 
-  override def toString: String = s"Piece(...)"
+  override def toString: String = s"Piece($index, $begin, ...)"
 }
 
 object Piece {

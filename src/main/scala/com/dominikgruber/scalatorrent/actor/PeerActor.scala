@@ -10,7 +10,7 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.{Message, _}
 case class PeerActor(remoteAddress: InetSocketAddress, selfPeerId: String, coordinator: ActorRef)
   extends Actor with ActorLogging with PeerHandshaking with PeerSharing {
 
-  def getTcpManager = IO(Tcp)(context.system)
+  def openTcp = IO(Tcp)(context.system)
 
   override def receive: Receive = handeshaking
 
@@ -30,5 +30,6 @@ object ToByteString {
 
 object Hex {
   def apply(buf: Array[Byte]): String = buf.map("%02X" format _).mkString(" ")
+  def apply(buf: Vector[Byte]): String = apply(buf.toArray)
   def apply(buf: ByteString): String = apply(buf.toArray)
 }

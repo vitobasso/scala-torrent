@@ -1,8 +1,11 @@
 package com.dominikgruber.scalatorrent.metainfo
 
-import com.dominikgruber.scalatorrent.bencode.{BencodeEncoder, BencodeParser}
 import java.io.File
+import java.nio.charset.StandardCharsets.ISO_8859_1
 import java.util.Date
+
+import com.dominikgruber.scalatorrent.bencode.{BencodeEncoder, BencodeParser}
+
 import scala.collection.mutable
 import scala.io.{Codec, Source}
 
@@ -105,7 +108,7 @@ object MetaInfo {
   def calculateInfoHashFromBencodedString(bencode: String): Vector[Byte] = {
     val infoValue = getInfoValueFromBencodedString(bencode)
     val md = java.security.MessageDigest.getInstance("SHA-1")
-    md.digest(infoValue.getBytes("ISO-8859-1")).toVector
+    md.digest(infoValue.getBytes(ISO_8859_1)).toVector
   }
 
   def apply(info: Map[String,Any], infoHash: Vector[Byte]): MetaInfo = {

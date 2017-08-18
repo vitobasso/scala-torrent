@@ -1,6 +1,7 @@
 package com.dominikgruber.scalatorrent.tracker
 
 import java.net.{InetAddress, InetSocketAddress}
+import java.nio.charset.StandardCharsets.ISO_8859_1
 
 /**
  * Descriptions taken from the specification:
@@ -24,6 +25,7 @@ case class Peer
   port: Int
 
 ) {
+  val address: (String, Int) = (ip, port)
   lazy val inetSocketAddress = new InetSocketAddress(ip, port)
 }
 
@@ -50,7 +52,7 @@ object Peer {
    * last 2 bytes are the port number. All in network (big endian) notation.
    */
   def createList(peers: String): List[Peer] = {
-    val (peerList, _) = peers.getBytes("ISO-8859-1").foldLeft((List[Peer](), Array[Byte]()))((z, byte) => {
+    val (peerList, _) = peers.getBytes(ISO_8859_1).foldLeft((List[Peer](), Array[Byte]()))((z, byte) => {
       if (z._2.length < 5) (z._1, z._2 :+ byte)
       else {
         val ip = InetAddress.getByAddress(z._2.take(4))

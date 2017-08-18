@@ -53,7 +53,7 @@ trait PeerSharing {
             log.debug(s"Received $message")
             handleMessage(torrent, message)
           case None =>
-            log.warning(s"Received unknown message: ${Hex(data)}")
+            log.warning(s"Received unknown message: ${Hex(data.take(15))} ...")
             //TODO parse failure
         }
 
@@ -64,7 +64,7 @@ trait PeerSharing {
       case p: Piece =>
         torrent ! p
       case b: Bitfield =>
-        bitfield = b.downloadedPieces
+        bitfield = b.availablePieces
         torrent ! AreWeInterested(BitSetUtil.fromBooleans(bitfield))
       case Have(index) =>
         bitfield = bitfield.updated(index, true)

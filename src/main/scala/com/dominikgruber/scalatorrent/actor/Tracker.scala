@@ -1,16 +1,18 @@
 package com.dominikgruber.scalatorrent.actor
 
-import akka.actor.{ActorRef, Actor}
-import java.nio.charset.Charset
 import java.net.URLEncoder
-import spray.client.pipelining._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import spray.http.{HttpCharsets, HttpRequest, HttpResponse, Uri}
-import spray.http.Uri.Query
-import scala.util.{Failure, Success}
+import java.nio.charset.StandardCharsets._
+
+import akka.actor.{Actor, ActorRef}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.tracker.TrackerResponse
+import spray.client.pipelining._
+import spray.http.Uri.Query
+import spray.http.{HttpCharsets, HttpRequest, HttpResponse, Uri}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 object Tracker {
   case class SendEventStarted(downloaded: Long, uploaded: Long)
@@ -42,7 +44,7 @@ class Tracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor {
   private def sendRequest(event: TrackerEvent, downloaded: Long, uploaded: Long, requestor: ActorRef) = {
     // Build query manually so the encoding is properly handled
     val paramsStr = getRequestParams(event, downloaded, uploaded).foldLeft("")((z, m) => z + "&" + m._1 + "=" + m._2).drop(1)
-    val query = Query(paramsStr, Charset.forName("ISO-8859-1"), Uri.ParsingMode.RelaxedWithRawQuery)
+    val query = Query(paramsStr, ISO_8859_1, Uri.ParsingMode.RelaxedWithRawQuery)
     val uri = Uri(metainfo.announce).withQuery(query)
 
     val pipeline: HttpRequest => Future[HttpResponse] = sendReceive
@@ -66,7 +68,7 @@ class Tracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor {
       /**
        * 20-byte SHA1 hash of the value of the info key from the Metainfo file.
        */
-      "info_hash" -> URLEncoder.encode(new String(metainfo.fileInfo.infoHash.toArray, "ISO-8859-1"), "ISO-8859-1"),
+      "info_hash" -> URLEncoder.encode(new String(metainfo.fileInfo.infoHash.toArray, ISO_8859_1), ISO_8859_1.name),
 
       "peer_id" -> peerId,
 

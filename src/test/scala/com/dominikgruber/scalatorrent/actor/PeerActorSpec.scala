@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorRef, Props}
 import akka.io.Tcp._
 import com.dominikgruber.scalatorrent.actor.Coordinator.{IdentifyTorrent, TorrentInfo}
-import com.dominikgruber.scalatorrent.actor.PeerHandshaking.{BeginConnection, ReceiveConnection}
+import com.dominikgruber.scalatorrent.actor.PeerHandshaking.{BeginConnection, ReceiveConnection, extension, pstr}
 import com.dominikgruber.scalatorrent.actor.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.actor.ToByteString._
 import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, NextRequest}
@@ -38,8 +38,12 @@ class PeerActorSpec extends ActorSpec {
   "A PeerConnection actor in Handshake-Receive behavior" must {
     val peerConnection = startActor("Handshake-Receive")
 
-    "receive the 1st handshake then identify" in {
+    "receive an incoming connection" in {
       peerConnection ! ReceiveConnection(testActor)
+      expectMsgType[Register]
+    }
+
+    "wait the 1st handshake then identify" in {
       peerConnection ! Received(handshake)
       expectMsgType[IdentifyTorrent]
     }
@@ -92,6 +96,7 @@ class PeerActorSpec extends ActorSpec {
 
   private def skipToConnected(peerConnection: ActorRef) = {
     peerConnection ! ReceiveConnection(testActor)
+    expectMsgType[Register]
     peerConnection ! Received(handshake)
     expectMsgType[IdentifyTorrent]
     peerConnection ! TorrentInfo(meta, testActor)
@@ -107,7 +112,7 @@ class PeerActorSpec extends ActorSpec {
   lazy val meta = Mocks.metaInfo()
   lazy val handshake = {
     val peerId = "peer-id-has-20-chars"
-    Handshake(Mocks.infoHash, peerId)
+    Handshake(pstr, extension, peerId, Mocks.infoHash)
   }
   lazy val bitfield = Bitfield(Vector(true))
   lazy val haveMsg = Have(0)
@@ -115,7 +120,7 @@ class PeerActorSpec extends ActorSpec {
   lazy val piece = Piece(0, 0, Vector(0, 0))
   def startActor(name: String): ActorRef = {
     def createActor = new PeerActor(address, "", testActor) {
-      override val getTcpManager: ActorRef = testActor
+      override val openTcp: ActorRef = testActor
     }
     system.actorOf(Props(createActor), name)
   }
