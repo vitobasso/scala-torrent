@@ -25,7 +25,8 @@ import com.dominikgruber.scalatorrent.actor.Hex
  * In version 1.0 of the BitTorrent protocol, pstrlen = 19, and pstr =
  * "BitTorrent protocol".
  */
-case class Handshake(pstr: String, extension: Vector[Byte], peerId: String, infoHash: Vector[Byte]) {
+case class Handshake(pstr: String, extension: Vector[Byte], peerId: String, infoHash: Vector[Byte])
+  extends MessageOrHandshake {
 
   def marshal: Vector[Byte] =
     Vector.concat(

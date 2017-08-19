@@ -77,6 +77,8 @@ case class MetaInfo
    */
   def bencodedString: Option[String] =
     BencodeEncoder(toMap)
+
+  def hash: String = fileInfo.infoHashString
 }
 
 object MetaInfo {

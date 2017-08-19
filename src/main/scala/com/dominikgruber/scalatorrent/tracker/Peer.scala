@@ -3,6 +3,14 @@ package com.dominikgruber.scalatorrent.tracker
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
+object PeerAddress {
+  implicit def toPeerAddress(inetAddress: InetSocketAddress) =
+    PeerAddress(inetAddress.getHostName, inetAddress.getPort)
+}
+case class PeerAddress(ip: String, port: Int){
+  override def toString: String = s"$ip:$port"
+}
+
 /**
  * Descriptions taken from the specification:
  * https://wiki.theory.org/BitTorrentSpecification#Metainfo_File_Structure
@@ -25,7 +33,7 @@ case class Peer
   port: Int
 
 ) {
-  val address: (String, Int) = (ip, port)
+  val address = PeerAddress(ip, port)
   lazy val inetSocketAddress = new InetSocketAddress(ip, port)
 }
 

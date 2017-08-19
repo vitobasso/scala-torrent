@@ -1,11 +1,13 @@
 package com.dominikgruber.scalatorrent.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import com.dominikgruber.scalatorrent.actor.Coordinator.CreatePeerConnection
-import com.dominikgruber.scalatorrent.actor.PeerSharing.SendToPeer
-import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, BlockSize, NextRequest, ReceivedPiece}
+import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
+import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
+import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
+import com.dominikgruber.scalatorrent.actor.Torrent._
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed, TrackerResponseReceived}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
+import com.dominikgruber.scalatorrent.metainfo.SelfInfo._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece}
 import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithFailure, TrackerResponseWithSuccess}
 import com.dominikgruber.scalatorrent.transfer.TransferStatus
@@ -19,19 +21,16 @@ object Torrent {
     */
   val BlockSize: Int = 16 * 1024
   val MaxActivePieces: Int = 1
+  case class PeerReady(conn: ActorRef, peer: Peer)
   case class AreWeInterested(partsAvailable: BitSet)
   case class NextRequest(partsAvailable: BitSet)
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
 }
 
-class Torrent(name: String, metaInfo: MetaInfo, peerId: String, coordinator: ActorRef, portIn: Int)
+class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   extends Actor with ActorLogging {
 
-  // Connect to Tracker
-  val tracker: ActorRef = {
-    val props = Props(classOf[Tracker], metaInfo, peerId, portIn)
-    context.actorOf(props, s"tracker-${metaInfo.fileInfo.infoHashString}")
-  }
+  val tracker: ActorRef = createTrackerActor()
 
   override def preStart(): Unit = {
     tracker ! SendEventStarted(0, 0)
@@ -46,35 +45,41 @@ class Torrent(name: String, metaInfo: MetaInfo, peerId: String, coordinator: Act
         connectToPeers(s.peers)
         context become sharing
       case f: TrackerResponseWithFailure =>
-        log.debug(s"[$name] Request to Tracker failed: ${f.reason}")
-        // TODO: Handle failure
+        log.warning(s"[$name] Request to Tracker failed: ${f.reason}")
     }
 
     case TrackerConnectionFailed(msg) =>
-      log.debug(s"[$name] Connection to Tracker failed: $msg")
-      // TODO: Handle failure
+      log.warning(s"[$name] Connection to Tracker failed: $msg")
   }
 
-  val transferStatus = TransferStatus(metaInfo)
+  val transferStatus = TransferStatus(meta)
 
   def sharing: Receive = {
-    case AreWeInterested(piecesAvailable) => // from PeerConnection
+
+    case PeerReady(peerConn, peer) => // from HandshakeActor
+      val peerSharing = createPeerSharingActor(peerConn, peer)
+      peerConn ! SetListener(peerSharing)
+
+    case AreWeInterested(piecesAvailable) => // from PeerSharing
       if(transferStatus.isAnyPieceNew(piecesAvailable))
         sender ! SendToPeer(Interested())
-    case NextRequest(piecesAvailable) => // from PeerConnection
+
+    case NextRequest(piecesAvailable) => // from PeerSharing
       requestNewBlock(piecesAvailable, sender) //TODO begin with 5 requests
-    case ReceivedPiece(piece, piecesAvailable) => // from PeerConnection
+
+    case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
       //TODO persist data
       transferStatus.markBlockAsCompleted(piece.index, piece.begin/BlockSize)
       requestNewBlock(piecesAvailable, sender)
   }
 
-  def requestNewBlock(piecesAvailable: BitSet, peerConnection: ActorRef): Unit =
+  def requestNewBlock(piecesAvailable: BitSet, peerSharing: ActorRef): Unit =
     transferStatus.pickNewBlock(piecesAvailable) match {
       case Some(request) =>
-        peerConnection ! SendToPeer(request)
-      case None => //TODO fully downloaded
+        peerSharing ! SendToPeer(request)
+      case None =>
+        peerSharing ! NothingToRequest
     }
 
   def connectToPeers(peers: List[Peer]): Unit = {
@@ -82,8 +87,18 @@ class Torrent(name: String, metaInfo: MetaInfo, peerId: String, coordinator: Act
       case (_, duplicates) => duplicates.head
     }
     unique.foreach{
-      peer => coordinator ! CreatePeerConnection(peer, metaInfo)
+      peer => coordinator ! ConnectToPeer(peer, meta)
     }
+  }
+
+  private def createPeerSharingActor(peerConn: ActorRef, peer: Peer) = {
+    val props = Props(classOf[PeerSharing], peerConn, peer, meta)
+    context.actorOf(props, s"peer-sharing-${peer.address}")
+  }
+
+  private def createTrackerActor(): ActorRef = {
+    val props = Props(classOf[Tracker], meta, selfPeerId, portIn)
+    context.actorOf(props, s"tracker-${meta.hash}")
   }
 
 }

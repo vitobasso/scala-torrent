@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
-import com.dominikgruber.scalatorrent.actor.PeerHandshaking._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
+import com.dominikgruber.scalatorrent.metainfo.SelfInfo._
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
 class HandshakeSpec extends UnitSpec {
