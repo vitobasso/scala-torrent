@@ -9,6 +9,6 @@ object Mocks {
     MetaInfo(fileInfo, "", None, None, None, None, None)
   }
 
-  val infoHash = Vector.fill(20)(0.toByte)
+  val infoHash: Vector[Byte] = Vector.fill(20)(0.toByte)
 
 }

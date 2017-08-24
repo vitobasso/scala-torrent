@@ -1,7 +1,8 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
-import akka.util.ByteStringBuilder
 import java.nio.ByteBuffer
+
+import akka.util.ByteStringBuilder
 
 /**
  * piece: <len=0009+X><id=7><index><begin><block>
@@ -24,20 +25,27 @@ case class Piece(index: Int, begin: Int, block: Vector[Byte]) extends Message {
     bsb.result().toVector
   }
 
-  override def toString: String = s"Piece(...)"
+  override def toString: String = s"Piece($index, $begin, ...)"
 }
 
 object Piece {
 
   val MESSAGE_ID: Byte = 7
 
+  val intLen = 4
+  val headersLen = 1 + intLen + intLen
+                 //id   index    begin
+  val headersEnd = intLen + headersLen //include the "length" header
+
   def unmarshal(message: Vector[Byte]): Option[Piece] = {
     if (message.length > 14 && message(4) == MESSAGE_ID) {
-      val l = ByteBuffer.wrap(message.slice(0, 4).toArray).getInt - 9
-      if (l + 13 == message.length) {
+      val lenInMsg = ByteBuffer.wrap(message.slice(0, 4).toArray).getInt
+      if (lenInMsg + intLen == message.length) {
         val index = ByteBuffer.wrap(message.slice(5, 9).toArray).getInt
         val begin = ByteBuffer.wrap(message.slice(9, 13).toArray).getInt
-        return Some(Piece(index, begin, message.drop(13)))
+        return Some(Piece(index, begin, message.drop(headersEnd)))
+      } else {
+        println(s"*** Piece had length=${message.length - intLen} but lengthHeader=$lenInMsg")
       }
     }
     None

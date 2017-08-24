@@ -1,5 +1,7 @@
 package com.dominikgruber.scalatorrent.tracker
 
+import java.nio.charset.StandardCharsets.ISO_8859_1
+
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
 class PeerSpec extends UnitSpec {
@@ -21,6 +23,6 @@ class PeerSpec extends UnitSpec {
 
   it should "parse a string with compact format" in {
     val byteArr = Array("4F", "8D", "AD", "AE", "C2", "90", "4F", "8D", "AD", "B0", "65", "8D").map(Integer.parseInt(_, 16).toByte)
-    Peer.createList(new String(byteArr, "ISO-8859-1")).reverse should be (List(Peer(None, "79.141.173.174", 49808), Peer(None, "79.141.173.176", 25997)))
+    Peer.createList(new String(byteArr, ISO_8859_1)).reverse should be (List(Peer(None, "79.141.173.174", 49808), Peer(None, "79.141.173.176", 25997)))
   }
 }

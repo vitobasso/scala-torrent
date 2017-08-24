@@ -1,7 +1,8 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
-import akka.util.ByteStringBuilder
 import java.nio.ByteOrder
+
+import akka.util.ByteStringBuilder
 
 /**
  * All of the messages besides the Handshake take the form of
@@ -9,7 +10,7 @@ import java.nio.ByteOrder
  * big-endian value. The message ID is a single decimal byte. The payload is
  * message dependent.
  */
-abstract class Message {
+abstract class Message extends MessageOrHandshake {
   def lengthPrefix: Int
   def messageId: Option[Byte]
 

@@ -1,7 +1,8 @@
 package com.dominikgruber.scalatorrent.actor
 
 import akka.actor.{ActorRef, Props}
-import com.dominikgruber.scalatorrent.actor.Coordinator.CreatePeerConnection
+import akka.testkit.TestProbe
+import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, BlockSize, NextRequest, ReceivedPiece}
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerResponseReceived}
@@ -13,54 +14,59 @@ import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 import scala.collection.BitSet
 
 class TorrentSpec extends ActorSpec {
+  outer =>
 
-  "A Torrent actor" must {
+  val meta: MetaInfo = Mocks.metaInfo(
+    totalLength = 6 * BlockSize,
+    pieceLength = 2 * BlockSize)
+  val tracker = TestProbe("tracker")
+  val coordinator = TestProbe("coordinator")
+  val totalBlocks = meta.fileInfo.totalBytes/BlockSize
 
-    val meta: MetaInfo = Mocks.metaInfo(
-      totalLength = 6 * BlockSize,
-      pieceLength = 2 * BlockSize)
-    val torrent: ActorRef = {
-      def createActor = new Torrent("", meta, "", testActor, 0) {
-        override val tracker: ActorRef = testActor
-      }
-      system.actorOf(Props(createActor), "torrent")
-    }
-    lazy val totalBlocks = meta.fileInfo.totalBytes/BlockSize
-
-    "sanity check" in {
-      // next tests depend on this
+  "test pre-conditions" must {
+    "be satisfied" in {
+      // following tests depend on this
       totalBlocks shouldBe 6
       meta.fileInfo.numPieces shouldBe 3
+    }
+  }
+
+  "a Torrent actor" must {
+
+    val torrent: ActorRef = {
+      def createActor = new Torrent("", meta, coordinator.ref, 0) {
+        override val tracker: ActorRef = outer.tracker.ref
+      }
+      system.actorOf(Props(createActor), "torrent")
     }
 
     "say hi to tracker" in {
       //after creating the actor
-      expectMsg(SendEventStarted(0, 0))
+      tracker expectMsg SendEventStarted(0, 0)
     }
 
     "create peer connections" in {
-      val peer1 = mock[Peer]
-      val peer2 = mock[Peer]
+      val peer1 = Peer(None, "ip1", 0)
+      val peer2 = Peer(None, "ip2", 0)
       torrent ! TrackerResponseReceived {
         TrackerResponseWithSuccess(0, None, None, 0, 0, List(peer1, peer2), None)
       }
-      expectMsg(CreatePeerConnection(peer1, meta))
-      expectMsg(CreatePeerConnection(peer2, meta))
+      coordinator expectMsg ConnectToPeer(peer1, meta)
+      coordinator expectMsg ConnectToPeer(peer2, meta)
     }
 
     "send Interested when a peer has new pieces" in {
       torrent ! AreWeInterested(BitSet(0))
-      expectMsgPF() {
-        case SendToPeer(Interested()) =>
-      }
+      val SendToPeer(msg) = expectMsgType[SendToPeer]
+      msg shouldBe Interested()
     }
 
-    "request new blocks in response to MoreRequests" in {
+    "send Request in response to MoreRequests" in {
       torrent ! NextRequest(allAvailable)
       ObservedRequests.expectRequest //TODO x5
     }
 
-    "request a new block after receiving ReceivedPiece, and it should be from the same piece" in {
+    "send Request in response to ReceivedPiece" in {
       val firstRequest = {
         ObservedRequests.received.size shouldBe 1
         ObservedRequests.received.head
@@ -70,7 +76,7 @@ class TorrentSpec extends ActorSpec {
       ObservedRequests.expectRequest
     }
 
-    "the second request should be another block from the same piece" in {
+    "pick the same index for the first and second Requests" in {
       val (firstRequest, secondRequest) = {
         ObservedRequests.received.size shouldBe 2
         (ObservedRequests.received.head, ObservedRequests.received(1))
@@ -97,10 +103,9 @@ class TorrentSpec extends ActorSpec {
       var received = Seq.empty[Request]
 
       def expectRequest: Unit = {
-        val request = expectMsgPF() {
-          case SendToPeer(r: Request) => r
-        }
-        ObservedRequests.received = ObservedRequests.received :+ request
+        val SendToPeer(msg) = expectMsgType[SendToPeer]
+        msg shouldBe a[Request]
+        ObservedRequests.received = ObservedRequests.received :+ msg.asInstanceOf[Request]
       }
     }
 
