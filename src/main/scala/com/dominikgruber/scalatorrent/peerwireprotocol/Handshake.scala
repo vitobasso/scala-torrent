@@ -48,7 +48,7 @@ case class Handshake(pstr: String, extension: Vector[Byte], peerId: String, info
 object Handshake {
 
   //TODO make cleaner, use parser. https://github.com/harrah/sbinary
-  def unmarshall(message: Vector[Byte]): Option[Handshake] = {
+  def unmarshal(message: Vector[Byte]): Option[Handshake] = {
     val pstrlen = message(0)
     if(message.length >= pstrlen + 49) {
       val pstrEnd: Int = 1 + pstrlen

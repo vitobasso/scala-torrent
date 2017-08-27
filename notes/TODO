@@ -1,6 +1,5 @@
 
 - feature
-    receive piece in tcp segments
     repeat request to tracker
     keep 5 simultaneous requests
 

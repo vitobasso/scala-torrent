@@ -64,11 +64,8 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
     val response = torrent ? AreWeInterested(BitSetUtil.fromBooleans(bitfield))
     response.onSuccess {
       case msgToSend @ SendToPeer(msg) =>
-        msg match {
-          case _: Interested => amInterested = true
-          case _: NotInterested => amInterested = false
-        }
-      peerConn ! msgToSend
+        amInterested = msg.isInstanceOf[Interested]
+        peerConn ! msgToSend
     }
   }
 

@@ -1,4 +1,4 @@
-package com.dominikgruber.scalatorrent.actor;
+package com.dominikgruber.scalatorrent.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import akka.io.Tcp.{PeerClosed, Received, Write}
@@ -7,6 +7,10 @@ import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.actor.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.actor.ToByteString._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Handshake, Message, MessageOrHandshake}
+import com.dominikgruber.scalatorrent.transfer.MessageBuffer
+import com.dominikgruber.scalatorrent.transfer.MessageBuffer.{HandshakeMode, MessageMode, Mode}
+
+import scala.collection.mutable.ArrayBuffer
 
 object PeerConnection {
   case class SetListener(listener: ActorRef)
@@ -14,6 +18,8 @@ object PeerConnection {
 
 class PeerConnection(tcp: ActorRef)
   extends Actor with ActorLogging with Stash {
+
+  val buffer = new MessageBuffer
 
   override def receive: Receive = {
     case SetListener(listener) => // from Coordinator
@@ -23,24 +29,25 @@ class PeerConnection(tcp: ActorRef)
   }
 
   def handshaking(listener: ActorRef): Receive =
-    behavior(Handshake.unmarshall, listener)
+    behavior(HandshakeMode, listener)
       .orElse {
         case SetListener(newListener) => // from Torrent
           context become sharing(newListener)
       }
 
   def sharing(listener: ActorRef): Receive =
-    behavior(Message.unmarshal, listener)
+    behavior(MessageMode, listener)
 
-  def behavior[M <: MessageOrHandshake](parse: Vector[Byte] => Option[M], listener: ActorRef): Receive = {
+  def behavior[M <: MessageOrHandshake](mode: Mode[M], listener: ActorRef): Receive = {
 
     case Received(data) => // from Tcp
-      parse(data.toVector) match {
-        case Some(message) =>
-          log.debug(s"Received $message")
-          listener ! message
-        case None =>
-          log.warning(s"Received unknown ${data.size}b message: ${Hex(data.take(15))} ...")
+      val result = buffer.receiveBytes(mode)(data)
+      result.messages.foreach { message =>
+        log.debug(s"Received $message")
+        listener ! message
+      }
+      result.rubbish.foreach { bytes =>
+        log.warning(s"Received unknown ${bytes.size}b message: ${Hex(bytes.take(15))} ...")
       }
 
     case SendToPeer(msg: MessageOrHandshake) => // from PeerSharing
@@ -69,5 +76,6 @@ object ToByteString {
 object Hex {
   def apply(buf: Array[Byte]): String = buf.map("%02X" format _).mkString(" ")
   def apply(buf: Vector[Byte]): String = apply(buf.toArray)
+  def apply(buf: ArrayBuffer[Byte]): String = apply(buf.toArray)
   def apply(buf: ByteString): String = apply(buf.toArray)
 }
