@@ -1,15 +1,17 @@
 package com.dominikgruber.scalatorrent
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.dominikgruber.scalatorrent.actor.Coordinator
 import com.dominikgruber.scalatorrent.actor.Coordinator._
-import scala.concurrent.duration._
+import com.dominikgruber.scalatorrent.terminal.ProgressReporting
+import org.slf4j.{Logger, LoggerFactory}
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.io.StdIn
 import scala.language.postfixOps
-import scala.util.Success
 
 object Boot extends App {
 
@@ -22,9 +24,11 @@ object Boot extends App {
   println("")
   println("")
 
+  val log: Logger = LoggerFactory.getLogger(Boot.getClass)
+
   // Start actor system and coordinator actor
   implicit val system = ActorSystem("scala-torrent")
-  val coordinator = system.actorOf(Props(classOf[Coordinator]), "coordinator")
+  val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator]), "coordinator")
 
   // TMP
   addTorrentFile("/Users/victorbasso/Downloads/ubuntu-12.04.5-desktop-amd64.iso.torrent")
@@ -46,16 +50,17 @@ object Boot extends App {
     print("> ")
   }
 
-  def addTorrentFile(file: String) = {
-    if (file.isEmpty)
+  def addTorrentFile(file: String): Unit = {
+    if (file.isEmpty) {
       println("No file specified. See 'help' for further instructions.")
-    else {
+    } else {
       implicit val timeout = Timeout(5 seconds)
-      (coordinator ? AddTorrentFile(file)) onComplete {
-        case Success(TorrentAddedSuccessfully(file1)) =>
-          print(s"\r$file1 added successfully.\n> ")
-        case Success(TorrentFileInvalid(file1, message)) =>
-          print(s"\rFailed to add $file1: $message\n> ")
+      (coordinator ? AddTorrentFile(file)) onSuccess {
+        case TorrentAddedSuccessfully(file1, torrent) =>
+          print(s"Added $file1.\n> ")
+          ProgressReporting.scheduleReport(file1, torrent)
+        case TorrentFileInvalid(file1, message) =>
+          print(s"Failed to add $file1: $message\n> ")
         case _ =>
       }
     }
@@ -73,4 +78,5 @@ object Boot extends App {
       _ => System.exit(0)
     }
   }
+
 }

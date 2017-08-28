@@ -25,6 +25,7 @@ object Torrent {
   case class AreWeInterested(partsAvailable: BitSet)
   case class NextRequest(partsAvailable: BitSet)
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
+  case object ReportPlease
 }
 
 class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
@@ -72,6 +73,9 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       //TODO persist data
       transferStatus.markBlockAsCompleted(piece.index, piece.begin/BlockSize)
       requestNewBlock(piecesAvailable, sender)
+
+    case ReportPlease =>
+      sender ! transferStatus.report
   }
 
   def requestNewBlock(piecesAvailable: BitSet, peerSharing: ActorRef): Unit =

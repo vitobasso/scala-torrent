@@ -16,7 +16,7 @@ import scala.collection.mutable
 
 object Coordinator {
   case class AddTorrentFile(file: String)
-  case class TorrentAddedSuccessfully(file: String)
+  case class TorrentAddedSuccessfully(file: String, torrent: ActorRef)
   case class TorrentFileInvalid(file: String, message: String)
   case class ConnectToPeer(peer: Peer, meta: MetaInfo)
   case class PeerConnected(peerConn: ActorRef, address: PeerAddress)
@@ -57,7 +57,7 @@ class Coordinator extends Actor with ActorLogging with Asking {
       val meta = MetaInfo(new File(file))
       val torrentActor: ActorRef = createTorrentActor(name, meta)
       torrents(meta.hash) = (torrentActor, meta)
-      sender ! TorrentAddedSuccessfully(file)
+      sender ! TorrentAddedSuccessfully(file, torrentActor)
     } catch {
       case e: Exception => sender ! TorrentFileInvalid(file, e.getMessage)
     }

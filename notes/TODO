@@ -6,6 +6,7 @@
 - test
     extension handshakes
     receive duplicate peers from Tracker
+    Torrent receives ReceivedPiece(Piece), not Piece
 
 - refactor
     parser messages with https://github.com/harrah/sbinary or scala parser

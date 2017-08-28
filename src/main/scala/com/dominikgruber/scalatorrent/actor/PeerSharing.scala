@@ -2,7 +2,7 @@ package com.dominikgruber.scalatorrent.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
-import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, NextRequest}
+import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, NextRequest, ReceivedPiece}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol._
 import com.dominikgruber.scalatorrent.tracker.Peer
@@ -41,7 +41,7 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
 
   override def receive: Receive = {
     case p: Piece => // from PeerConnection
-      torrent ! p
+      torrent ! ReceivedPiece(p, BitSetUtil.fromBooleans(bitfield))
     case b: Bitfield => // from PeerConnection
       //TODO validate length
       bitfield = b.availablePieces

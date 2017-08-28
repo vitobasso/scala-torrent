@@ -84,6 +84,18 @@ case class TransferStatus(metaInfo: MetaInfo) {
       Some(blockStatus.getOrElseUpdate(piece, allBlocksPending))
     }
 
+  def report: ProgressReport = {
+    def pieceProgress(index: Int): Option[Double] =
+      blockStatus.get(index).map { _.count(identity).toFloat / blocksPerPiece }
+
+    val progressPerPiece = pieceStatus.zipWithIndex.map {
+      case (complete, index) =>
+        val progress: Double = if (complete) 1.0 else pieceProgress(index).getOrElse(0)
+        (index, progress)
+    }.toMap
+    ProgressReport(totalPieces, progressPerPiece)
+  }
+
 }
 
 object BitSetUtil {
@@ -91,4 +103,8 @@ object BitSetUtil {
     val indexesOfTrue = bools.zipWithIndex.collect { case (true, i) => i }
     BitSet(indexesOfTrue: _*)
   }
+}
+
+case class ProgressReport(totalPieces: Int, pieceProgress: Map[Int, Double]) {
+  val overallProgress: Double = pieceProgress.values.sum / totalPieces
 }
