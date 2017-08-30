@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerSharing.SendToPeer
+import com.dominikgruber.scalatorrent.actor.Storage.Store
 import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, BlockSize, NextRequest, ReceivedPiece}
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerResponseReceived}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -20,6 +21,7 @@ class TorrentSpec extends ActorSpec {
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
   val tracker = TestProbe("tracker")
+  val storage = TestProbe("storage")
   val coordinator = TestProbe("coordinator")
   val totalBlocks = meta.fileInfo.totalBytes/BlockSize
 
@@ -36,6 +38,7 @@ class TorrentSpec extends ActorSpec {
     val torrent: ActorRef = {
       def createActor = new Torrent("", meta, coordinator.ref, 0) {
         override val tracker: ActorRef = outer.tracker.ref
+        override val storage: ActorRef = outer.storage.ref
       }
       system.actorOf(Props(createActor), "torrent")
     }
@@ -73,6 +76,7 @@ class TorrentSpec extends ActorSpec {
       }
       val piece = Piece(firstRequest.index, firstRequest.begin, Vector.empty)
       torrent ! ReceivedPiece(piece, allAvailable)
+      storage.expectMsgType[Store] //TODO test separately
       ObservedRequests.expectRequest
     }
 

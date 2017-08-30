@@ -1,7 +1,6 @@
 package com.dominikgruber.scalatorrent.terminal
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import com.dominikgruber.scalatorrent.actor.Torrent.ReportPlease
 import com.dominikgruber.scalatorrent.transfer.ProgressReport
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -9,6 +8,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object ProgressReporting {
+
+  case object ReportPlease
 
   def scheduleReport(file: String, torrent: ActorRef)(implicit system: ActorSystem): Unit = {
     val requestActor = createReportRequestActor(file, torrent)

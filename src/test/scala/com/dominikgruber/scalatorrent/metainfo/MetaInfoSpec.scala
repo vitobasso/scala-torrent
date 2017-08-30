@@ -2,9 +2,7 @@ package com.dominikgruber.scalatorrent.metainfo
 
 import java.util.Date
 
-import com.dominikgruber.scalatorrent.util.UnitSpec
-
-import scala.io.{Codec, Source}
+import com.dominikgruber.scalatorrent.util.{Mocks, UnitSpec}
 
 class MetaInfoSpec extends UnitSpec {
 
@@ -72,4 +70,15 @@ class MetaInfoSpec extends UnitSpec {
     val sourceString = loadTorrentFile("/metainfo/ubuntu-14.04-server-amd64.iso.torrent")
     MetaInfo.calculateInfoHashFromBencodedString(sourceString).map("%02x".format(_)).mkString should be ("757b25d9681d493167b8d3759dbfddc983e80646")
   }
+
+  "numPieces" should "be correct for even lengths" in {
+    val meta = Mocks.fileMetaInfo(totalLength = 20, pieceLength = 2)
+    meta.numPieces shouldBe 10
+  }
+
+  it should "be correct for odd lengths" in {
+    val meta = Mocks.fileMetaInfo(totalLength = 20, pieceLength = 3)
+    meta.numPieces shouldBe 7
+  }
+
 }

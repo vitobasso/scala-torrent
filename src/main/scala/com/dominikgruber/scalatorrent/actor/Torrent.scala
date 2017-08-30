@@ -4,11 +4,13 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
+import com.dominikgruber.scalatorrent.actor.Storage.Store
 import com.dominikgruber.scalatorrent.actor.Torrent._
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed, TrackerResponseReceived}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.metainfo.SelfInfo._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece}
+import com.dominikgruber.scalatorrent.terminal.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithFailure, TrackerResponseWithSuccess}
 import com.dominikgruber.scalatorrent.transfer.TransferStatus
 
@@ -25,13 +27,13 @@ object Torrent {
   case class AreWeInterested(partsAvailable: BitSet)
   case class NextRequest(partsAvailable: BitSet)
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
-  case object ReportPlease
 }
 
 class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   extends Actor with ActorLogging {
 
   val tracker: ActorRef = createTrackerActor()
+  val storage: ActorRef = createStorageActor()
 
   override def preStart(): Unit = {
     tracker ! SendEventStarted(0, 0)
@@ -70,7 +72,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
-      //TODO persist data
+      storage ! Store(piece.index, piece.block)
       transferStatus.markBlockAsCompleted(piece.index, piece.begin/BlockSize)
       requestNewBlock(piecesAvailable, sender)
 
@@ -103,6 +105,11 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   private def createTrackerActor(): ActorRef = {
     val props = Props(classOf[Tracker], meta, selfPeerId, portIn)
     context.actorOf(props, s"tracker-${meta.hash}")
+  }
+
+  private def createStorageActor(): ActorRef = {
+    val props = Props(classOf[Storage], meta.fileInfo)
+    context.actorOf(props, s"storage-${meta.hash}")
   }
 
 }
