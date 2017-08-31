@@ -52,7 +52,7 @@ class Tracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor {
     pipeline(Get(uri)) onComplete {
       case Success(res: HttpResponse) =>
         val resString = res.entity.asString(HttpCharsets.`ISO-8859-1`)
-        requestor ! TrackerResponseReceived(TrackerResponse(resString))
+        requestor ! TrackerResponse(resString)
       case Failure(error) =>
         requestor ! TrackerConnectionFailed(error.getMessage)
     }

@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
-import com.dominikgruber.scalatorrent.actor.Storage.Store
+import com.dominikgruber.scalatorrent.actor.Storage.{Status, StatusPlease, Store}
 import com.dominikgruber.scalatorrent.actor.Torrent._
-import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed, TrackerResponseReceived}
+import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.metainfo.SelfInfo._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece}
@@ -36,20 +36,26 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   val storage: ActorRef = createStorageActor()
 
   override def preStart(): Unit = {
-    tracker ! SendEventStarted(0, 0)
+    storage ! StatusPlease
   }
 
-  override def receive: Receive = findingPeers
+  override def receive: Receive = catchingUp
+
+  def catchingUp: Receive = {
+    case Status(piecesWeHave) =>
+      piecesWeHave foreach transferStatus.markPieceAsCompleted
+      tracker ! SendEventStarted(0, 0)
+      context become findingPeers
+  }
 
   def findingPeers: Receive = {
-    case TrackerResponseReceived(res) => res match { // from Tracker
-      case s: TrackerResponseWithSuccess =>
-        log.debug(s"[$name] Request to Tracker successful: $res")
-        connectToPeers(s.peers)
-        context become sharing
-      case f: TrackerResponseWithFailure =>
-        log.warning(s"[$name] Request to Tracker failed: ${f.reason}")
-    }
+    case s: TrackerResponseWithSuccess => // from Tracker
+      log.debug(s"[$name] Request to Tracker successful: $s")
+      connectToPeers(s.peers)
+      context become sharing
+
+    case f: TrackerResponseWithFailure =>
+      log.warning(s"[$name] Request to Tracker failed: ${f.reason}")
 
     case TrackerConnectionFailed(msg) =>
       log.warning(s"[$name] Connection to Tracker failed: $msg")

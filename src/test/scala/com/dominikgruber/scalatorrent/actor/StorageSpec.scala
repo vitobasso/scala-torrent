@@ -5,9 +5,11 @@ import java.nio.file.{Files, Path, Paths}
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
-import com.dominikgruber.scalatorrent.actor.Storage.{Load, Loaded, Store}
+import com.dominikgruber.scalatorrent.actor.Storage._
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
+
+import scala.collection.BitSet
 
 class StorageSpec extends ActorSpec {
   outer =>
@@ -97,6 +99,20 @@ class StorageSpec extends ActorSpec {
         expectMsg(Loaded(2, bytes("31 32")))
         storage ! Load(3)
         expectMsg(Loaded(3, bytes("00")))
+      }
+    }
+
+    "return the status" in {
+      Files.exists(path) shouldBe false
+      withCleanContext { storage =>
+        storage ! StatusPlease
+        expectMsg(Status(BitSet.empty))
+
+        storage ! Store(1, bytes("31 32"))
+        storage ! Store(2, bytes("33 34"))
+
+        storage ! StatusPlease
+        expectMsg(Status(BitSet(1, 2)))
       }
     }
 

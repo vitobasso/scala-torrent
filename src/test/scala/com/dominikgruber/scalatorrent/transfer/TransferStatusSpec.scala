@@ -24,7 +24,15 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
     state.getBlockStatus shouldBe Map(1 -> Seq(false, true))
   }
 
-  it should "mark a piece" in {
+  it should "mark a whole piece" in {
+    val state = TransferStatus(meta)
+    state.markPieceAsCompleted(2)
+
+    state.getPieceStatus shouldBe Seq(false, false, true)
+    state.getBlockStatus shouldBe empty
+  }
+
+  it should "mark a piece when marking the last block" in {
     val state = TransferStatus(meta)
     state.markBlockAsCompleted(1, 0)
     state.markBlockAsCompleted(1, 1)

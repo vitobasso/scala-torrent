@@ -31,11 +31,14 @@ case class TransferStatus(metaInfo: MetaInfo) {
       blocks <- activeBlocks(piece)
     } yield {
       blocks(block) = true
-      if(blocks.forall(_ == true)) {
-        pieceStatus(piece) = true
-        blockStatus -= piece
-      }
+      if(blocks.forall(_ == true))
+        markPieceAsCompleted(piece)
     }
+  }
+
+  def markPieceAsCompleted(piece: Int): Unit = {
+    pieceStatus(piece) = true
+    blockStatus -= piece
   }
 
   /**

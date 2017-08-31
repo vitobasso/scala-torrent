@@ -1,6 +1,10 @@
 
 - feature
-    ~ persist to file
+    buffer incomplete pieces
+        - TransferStatus: replace blockStatus by incompletePieces
+        - store only completed piece, not every Piece message
+        - update TorrentStoringSpec
+    send Bitfield, Have & Piece
     check hash when piece completed
     keep 5 simultaneous requests
     repeat request to tracker
@@ -15,3 +19,5 @@
     scala 2.12
     move utils together: bytes, Hex, bitset, ...
     prevent "test-file" creation during tests
+    replace Vector[Byte], others[Byte] by Array[Byte] ?
+    extract BlockSize from torrent actor, to simplify tests
