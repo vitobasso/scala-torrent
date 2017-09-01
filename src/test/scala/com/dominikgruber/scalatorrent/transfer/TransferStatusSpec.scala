@@ -13,54 +13,54 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   it should "begin with all blocks missing" in {
     val state = TransferStatus(meta)
     state.getPieceStatus shouldBe Seq(false, false, false)
-    state.getBlockStatus shouldBe empty
+    state.getPiecesInProgress shouldBe empty
   }
 
   it should "mark a block" in {
     val state = TransferStatus(meta)
-    state.markBlockAsCompleted(1, 1)
+    state.addBlock(1, 1, data)
 
     state.getPieceStatus shouldBe Seq(false, false, false)
-    state.getBlockStatus shouldBe Map(1 -> Seq(false, true))
+    state.getPiecesInProgress shouldBe Map(1 -> Map(1 -> data))
   }
 
   it should "mark a whole piece" in {
     val state = TransferStatus(meta)
-    state.markPieceAsCompleted(2)
+    state.completePiece(2)
 
     state.getPieceStatus shouldBe Seq(false, false, true)
-    state.getBlockStatus shouldBe empty
+    state.getPiecesInProgress shouldBe empty
   }
 
   it should "mark a piece when marking the last block" in {
     val state = TransferStatus(meta)
-    state.markBlockAsCompleted(1, 0)
-    state.markBlockAsCompleted(1, 1)
+    state.addBlock(1, 0, data)
+    state.addBlock(1, 1, data)
 
     state.getPieceStatus shouldBe Seq(false, true, false)
-    state.getBlockStatus shouldBe empty
+    state.getPiecesInProgress shouldBe empty
   }
 
   it should "ignore a redundant mark" in {
     val state = TransferStatus(meta)
 
-    state.markBlockAsCompleted(1, 0)
-    state.markBlockAsCompleted(1, 0)
+    state.addBlock(1, 0, data)
+    state.addBlock(1, 0, data)
     state.getPieceStatus shouldBe Seq(false, false, false)
-    state.getBlockStatus shouldBe Map(1 -> Seq(true, false))
+    state.getPiecesInProgress shouldBe Map(1 -> Map(0 -> data))
 
-    state.markBlockAsCompleted(1, 1)
-    state.markBlockAsCompleted(1, 0)
+    state.addBlock(1, 1, data)
+    state.addBlock(1, 0, data)
     state.getPieceStatus shouldBe Seq(false, true, false)
-    state.getBlockStatus shouldBe empty
+    state.getPiecesInProgress shouldBe empty
   }
 
   it should "only pick missing parts" in {
     val state = TransferStatus(meta)
-    state.markBlockAsCompleted(0, 0)
-    state.markBlockAsCompleted(0, 1)
-    state.markBlockAsCompleted(1, 0)
-    state.markBlockAsCompleted(1, 1)
+    state.addBlock(0, 0, data)
+    state.addBlock(0, 1, data)
+    state.addBlock(1, 0, data)
+    state.addBlock(1, 1, data)
 
     state.pickNewBlock(allAvailable) foreach {
       case Request(piece, block, _) => piece shouldBe 2
@@ -69,9 +69,9 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
 
   it should "only pick missing blocks" in {
     val state = TransferStatus(meta)
-    state.markBlockAsCompleted(0, 0)
-    state.markBlockAsCompleted(1, 0)
-    state.markBlockAsCompleted(2, 0)
+    state.addBlock(0, 0, data)
+    state.addBlock(1, 0, data)
+    state.addBlock(2, 0, data)
 
     state.pickNewBlock(allAvailable) foreach {
       case Request(piece, block, _) => block shouldBe 1 * BlockSize
@@ -80,12 +80,12 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
 
   it should "pick None when complete" in {
     val state = TransferStatus(meta)
-    state.markBlockAsCompleted(0, 0)
-    state.markBlockAsCompleted(0, 1)
-    state.markBlockAsCompleted(1, 0)
-    state.markBlockAsCompleted(1, 1)
-    state.markBlockAsCompleted(2, 0)
-    state.markBlockAsCompleted(2, 1)
+    state.addBlock(0, 0, data)
+    state.addBlock(0, 1, data)
+    state.addBlock(1, 0, data)
+    state.addBlock(1, 1, data)
+    state.addBlock(2, 0, data)
+    state.addBlock(2, 1, data)
 
     state.pickNewBlock(allAvailable) shouldBe None
   }
@@ -94,13 +94,18 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
   val allAvailable = BitSet(0, 1, 2)
+  val data: Vector[Byte] = Vector.empty[Byte]
 
   type Flags = mutable.Seq[Boolean]
+  type Bytes = Vector[Byte]
+  type Blocks = mutable.Map[Int, Bytes]
   val pieceStatus = PrivateMethod[Flags]('pieceStatus)
-  val blockStatus = PrivateMethod[mutable.Map[Int, Flags]]('blockStatus)
+  val piecesInProgress = PrivateMethod[mutable.Map[Int, Blocks]]('piecesInProgress)
   implicit class WhiteBox(sut: TransferStatus) {
-    def getPieceStatus: Flags = sut invokePrivate pieceStatus()
-    def getBlockStatus: mutable.Map[Int, Flags] = sut invokePrivate blockStatus()
+    def getPieceStatus: Flags =
+      sut invokePrivate pieceStatus()
+    def getPiecesInProgress: mutable.Map[Int, Blocks] =
+      sut invokePrivate piecesInProgress()
   }
 
 }

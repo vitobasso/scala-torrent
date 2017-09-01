@@ -1,7 +1,7 @@
 
 - feature
     buffer incomplete pieces
-        - TransferStatus: replace blockStatus by incompletePieces
+        ~ TransferStatus: replace blockStatus by incompletePieces
         - store only completed piece, not every Piece message
         - update TorrentStoringSpec
     send Bitfield, Have & Piece
@@ -21,3 +21,4 @@
     prevent "test-file" creation during tests
     replace Vector[Byte], others[Byte] by Array[Byte] ?
     extract BlockSize from torrent actor, to simplify tests
+    remove unused: PickRandom.randomIndexOf & test

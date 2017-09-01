@@ -43,7 +43,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
   def catchingUp: Receive = {
     case Status(piecesWeHave) =>
-      piecesWeHave foreach transferStatus.markPieceAsCompleted
+      piecesWeHave foreach transferStatus.completePiece
       tracker ! SendEventStarted(0, 0)
       context become findingPeers
   }
@@ -78,8 +78,11 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
-      storage ! Store(piece.index, piece.block)
-      transferStatus.markBlockAsCompleted(piece.index, piece.begin/BlockSize)
+      transferStatus
+        .addBlock(piece.index, piece.begin/BlockSize, piece.block)
+        .foreach { completePiece =>
+            storage ! Store(piece.index, completePiece)
+        }
       requestNewBlock(piecesAvailable, sender)
 
     case ReportPlease =>

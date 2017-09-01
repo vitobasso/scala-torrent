@@ -43,13 +43,18 @@ class TorrentStoringSpec extends ActorSpec {
       coordinator expectMsg ConnectToPeer(Mocks.peer, meta)
     }
 
-    "store a received Piece" in {
+    "store a Piece when completed" in {
       val index = 1
-      val bytes = Mocks.block(1.toByte)
-      val piece = Piece(index, 0, bytes)
-      torrent ! ReceivedPiece(piece, allAvailable)
-      //FIXME only store a completed piece. not every Piece message
-      storage.expectMsg(Store(index, bytes))
+
+      val bytes0 = Mocks.block(0.toByte)
+      val block0 = Piece(index, 0 * BlockSize, bytes0)
+      torrent ! ReceivedPiece(block0, allAvailable)
+      storage.expectNoMsg()
+
+      val bytes1 = Mocks.block(1.toByte)
+      val block1 = Piece(index, 1 * BlockSize, bytes1)
+      torrent ! ReceivedPiece(block1, allAvailable)
+      storage.expectMsg(Store(index, bytes0 ++ bytes1))
     }
 
   }
