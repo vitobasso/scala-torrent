@@ -54,7 +54,10 @@ class TorrentStoringSpec extends ActorSpec {
       val bytes1 = Mocks.block(1.toByte)
       val block1 = Piece(index, 1 * BlockSize, bytes1)
       torrent ! ReceivedPiece(block1, allAvailable)
-      storage.expectMsg(Store(index, bytes0 ++ bytes1))
+      storage.expectMsgPF() {
+        case Store(`index`, data) =>
+          data should contain theSameElementsInOrderAs (bytes0 ++ bytes1)
+      }
     }
 
   }

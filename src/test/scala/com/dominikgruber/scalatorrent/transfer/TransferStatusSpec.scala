@@ -94,7 +94,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
   val allAvailable = BitSet(0, 1, 2)
-  val data: Vector[Byte] = Vector.empty[Byte]
+  val data: Array[Byte] = Array.empty[Byte]
 
   type Flags = mutable.Seq[Boolean]
   type Bytes = Vector[Byte]

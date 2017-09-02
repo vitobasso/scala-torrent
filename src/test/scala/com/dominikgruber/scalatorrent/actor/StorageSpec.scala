@@ -25,13 +25,13 @@ class StorageSpec extends ActorSpec {
       Files.exists(path) shouldBe false
       withCleanContext { storage =>
         storage ! Load(0)
-        expectMsg(Loaded(0, bytes("00 00")))
+        expectLoaded(0, "00 00")
         storage ! Load(1)
-        expectMsg(Loaded(1, bytes("00 00")))
+        expectLoaded(1, "00 00")
         storage ! Load(2)
-        expectMsg(Loaded(2, bytes("00 00")))
+        expectLoaded(2, "00 00")
         storage ! Load(3)
-        expectMsg(Loaded(3, bytes("00")))
+        expectLoaded(3, "00")
         Files.exists(path) shouldBe true
       }
     }
@@ -42,13 +42,13 @@ class StorageSpec extends ActorSpec {
       Files.exists(path) shouldBe true
       withCleanContext { storage =>
         storage ! Load(0)
-        expectMsg(Loaded(0, bytes("31 32")))
+        expectLoaded(0, "31 32")
         storage ! Load(1)
-        expectMsg(Loaded(1, bytes("33 34")))
+        expectLoaded(1, "33 34")
         storage ! Load(2)
-        expectMsg(Loaded(2, bytes("35 36")))
+        expectLoaded(2, "35 36")
         storage ! Load(3)
-        expectMsg(Loaded(3, bytes("37")))
+        expectLoaded(3, "37")
       }
     }
 
@@ -59,13 +59,13 @@ class StorageSpec extends ActorSpec {
         storage ! Store(0, bytes("31 32"))
 
         storage ! Load(0)
-        expectMsg(Loaded(0, bytes("31 32")))
+        expectLoaded(0, "31 32")
         storage ! Load(1)
-        expectMsg(Loaded(1, bytes("00 00")))
+        expectLoaded(1, "00 00")
         storage ! Load(2)
-        expectMsg(Loaded(2, bytes("33 34")))
+        expectLoaded(2, "33 34")
         storage ! Load(3)
-        expectMsg(Loaded(3, bytes("00")))
+        expectLoaded(3, "00")
       }
     }
 
@@ -75,13 +75,13 @@ class StorageSpec extends ActorSpec {
         storage ! Store(3, bytes("31"))
 
         storage ! Load(0)
-        expectMsg(Loaded(0, bytes("00 00")))
+        expectLoaded(0, "00 00")
         storage ! Load(1)
-        expectMsg(Loaded(1, bytes("00 00")))
+        expectLoaded(1, "00 00")
         storage ! Load(2)
-        expectMsg(Loaded(2, bytes("00 00")))
+        expectLoaded(2, "00 00")
         storage ! Load(3)
-        expectMsg(Loaded(3, bytes("31")))
+        expectLoaded(3, "31")
       }
     }
 
@@ -92,13 +92,13 @@ class StorageSpec extends ActorSpec {
         storage ! Store(2, bytes("31 32"))
 
         storage ! Load(0)
-        expectMsg(Loaded(0, bytes("00 00")))
+        expectLoaded(0, "00 00")
         storage ! Load(1)
-        expectMsg(Loaded(1, bytes("00 00")))
+        expectLoaded(1, "00 00")
         storage ! Load(2)
-        expectMsg(Loaded(2, bytes("31 32")))
+        expectLoaded(2, "31 32")
         storage ! Load(3)
-        expectMsg(Loaded(3, bytes("00")))
+        expectLoaded(3, "00")
       }
     }
 
@@ -118,9 +118,17 @@ class StorageSpec extends ActorSpec {
 
   }
 
+  def expectLoaded(index: Int, byteStr: String): Unit =
+    expectMsgPF() {
+      case Loaded(`index`, data) =>
+        data should contain theSameElementsInOrderAs bytes(byteStr)
+    }
+
   def withCleanContext(test: ActorRef => Unit): Unit = {
     val storage = {
-      def createActor = new Storage(meta)
+      def createActor = new Storage(meta) {
+        override val pageSize: Int = 5 // > pieceSize but < totalSize
+      }
       system.actorOf(Props(createActor), "storage")
     }
     try {
@@ -131,8 +139,8 @@ class StorageSpec extends ActorSpec {
     }
   }
 
-  def bytes(str: String): Vector[Byte] = {
-    str.split(" ").map(Integer.parseInt(_, 16).toByte).toVector
+  def bytes(str: String): Array[Byte] = {
+    str.split(" ").map(Integer.parseInt(_, 16).toByte)
   }
 
 }

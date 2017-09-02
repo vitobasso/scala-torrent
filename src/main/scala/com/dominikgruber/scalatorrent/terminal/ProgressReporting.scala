@@ -32,7 +32,7 @@ object ProgressReporting {
 
   import com.dominikgruber.scalatorrent.terminal.AnsiEscape._
   def showProgress(progress: ProgressReport): Unit = {
-    val parts: String = progress.pieceProgress
+    val parts: String = progress.progressPerPiece
       .filter{ case (_, p) => p > 0 && p < 1 }
       .mapValues(percent)
       .map{ case (i, p) => s"$i: $p" }

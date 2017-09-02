@@ -20,13 +20,13 @@ case class TransferStatus(metaInfo: MetaInfo) {
   val blocksPerPiece: Int = metaInfo.fileInfo.pieceLength / BlockSize
 
   type Flags = mutable.Seq[Boolean]
-  type Bytes = Vector[Byte]
+  type Bytes = Array[Byte]
   type Blocks = mutable.Map[Int, Bytes]
 
   /**
     * Marks which pieces from 0 to [[totalPieces]] we have completed
     */
-  private val pieceStatus: Flags =
+  val pieceStatus: Flags =
     mutable.Seq.fill(totalPieces)(false)
 
   /**
@@ -51,7 +51,7 @@ case class TransferStatus(metaInfo: MetaInfo) {
   }
 
   private def aggregateBlocks(blocks: Blocks): Bytes =
-    blocks.toVector.sortBy(_._1).flatMap(_._2)
+    blocks.toArray.sortBy(_._1).flatMap(_._2)
 
   /**
     * @param available in the remote peer
@@ -128,6 +128,6 @@ object BitSetUtil {
   }
 }
 
-case class ProgressReport(totalPieces: Int, pieceProgress: Map[Int, Double]) {
-  val overallProgress: Double = pieceProgress.values.sum / totalPieces
+case class ProgressReport(totalPieces: Int, progressPerPiece: Map[Int, Double]) {
+  val overallProgress: Double = progressPerPiece.values.sum / totalPieces
 }

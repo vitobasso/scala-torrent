@@ -8,6 +8,10 @@
     check hash when piece completed
     keep 5 simultaneous requests
     repeat request to tracker
+    accept:
+        .torrent file names: characters not allowed for akka actor names: [, $, space, etc
+        tracker with udp://...
+        magnet
 
 - test
     receive duplicate peers from Tracker

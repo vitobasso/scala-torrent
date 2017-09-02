@@ -34,6 +34,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
   val tracker: ActorRef = createTrackerActor()
   val storage: ActorRef = createStorageActor()
+  val transferStatus = TransferStatus(meta)
 
   override def preStart(): Unit = {
     storage ! StatusPlease
@@ -43,6 +44,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
   def catchingUp: Receive = {
     case Status(piecesWeHave) =>
+      log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
       piecesWeHave foreach transferStatus.completePiece
       tracker ! SendEventStarted(0, 0)
       context become findingPeers
@@ -61,8 +63,6 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       log.warning(s"[$name] Connection to Tracker failed: $msg")
   }
 
-  val transferStatus = TransferStatus(meta)
-
   def sharing: Receive = {
 
     case PeerReady(peerConn, peer) => // from HandshakeActor
@@ -79,7 +79,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
       transferStatus
-        .addBlock(piece.index, piece.begin/BlockSize, piece.block)
+        .addBlock(piece.index, piece.begin/BlockSize, piece.block.toArray)
         .foreach { completePiece =>
             storage ! Store(piece.index, completePiece)
         }
