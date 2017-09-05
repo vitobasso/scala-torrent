@@ -14,7 +14,7 @@ import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet
 
-class TorrentSpec extends ActorSpec {
+class TorrentLeechingSpec extends ActorSpec {
   outer =>
 
   val meta: MetaInfo = Mocks.metaInfo(
@@ -23,7 +23,7 @@ class TorrentSpec extends ActorSpec {
   val tracker = TestProbe("tracker")
   val storage = TestProbe("storage")
   val coordinator = TestProbe("coordinator")
-  val totalBlocks = meta.fileInfo.totalBytes/BlockSize
+  val totalBlocks: Long = meta.fileInfo.totalBytes/BlockSize
 
   "test pre-conditions" must {
     "be satisfied" in {
@@ -33,7 +33,7 @@ class TorrentSpec extends ActorSpec {
     }
   }
 
-  "a Torrent actor" must {
+  "a Torrent actor, when downloading" must {
 
     val torrent: ActorRef = {
       def createActor = new Torrent("", meta, coordinator.ref, 0) {

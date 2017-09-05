@@ -1,9 +1,5 @@
 
 - feature
-    buffer incomplete pieces
-        ~ TransferStatus: replace blockStatus by incompletePieces
-        - store only completed piece, not every Piece message
-        - update TorrentStoringSpec
     send Bitfield, Have & Piece
     check hash when piece completed
     keep 5 simultaneous requests

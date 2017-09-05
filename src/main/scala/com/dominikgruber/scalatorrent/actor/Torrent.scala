@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
-import com.dominikgruber.scalatorrent.actor.Storage.{Status, StatusPlease, Store}
+import com.dominikgruber.scalatorrent.actor.Storage.{Complete, Status, StatusPlease, Store}
 import com.dominikgruber.scalatorrent.actor.Torrent._
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -48,6 +48,8 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       piecesWeHave foreach transferStatus.completePiece
       tracker ! SendEventStarted(0, 0)
       context become findingPeers
+    case Complete =>
+      //TODO seed
   }
 
   def findingPeers: Receive = {
