@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
-import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, NextRequest}
+import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, NextRequest, ReceivedPiece}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.{NotInterested, _}
 import com.dominikgruber.scalatorrent.tracker.Peer
@@ -49,7 +49,7 @@ class PeerSharingSpec extends ActorSpec {
 
     "deliver Pieces to the torrent actor" in {
       peerSharing ! Piece(0, 0, Vector(0, 0))
-      torrent.expectMsgType[Piece]
+      torrent.expectMsgType[ReceivedPiece]
     }
 
     "forward messages to the peer" in {

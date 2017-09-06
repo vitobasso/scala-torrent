@@ -13,6 +13,8 @@ libraryDependencies ++= {
     "com.typesafe" % "config" % "1.2.1",
     "com.typesafe.akka" %% "akka-slf4j" % "2.5.4",
     "ch.qos.logback" % "logback-classic" % "1.2.3",
+    "com.github.scala-incubator.io" %% "scala-io-file" % "0.4.3-1",
+    "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
     "org.scalatest" %% "scalatest" % "2.2.2" % Test,
     "org.scalamock" %% "scalamock-core" % "3.1.1" % Test,

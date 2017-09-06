@@ -1,6 +1,7 @@
 package com.dominikgruber.scalatorrent.metainfo
 
 import com.dominikgruber.scalatorrent.bencode.BencodeEncoder
+
 import scala.collection.mutable
 
 /**
@@ -62,7 +63,16 @@ sealed trait FileMetaInfo
    */
   lazy val infoHashString: String = infoHash.map("%02X" format _).mkString
 
-  val numPieces: Int = (totalBytes/pieceLength).toInt
+  val numPieces: Int =
+    (totalBytes / pieceLength + (totalBytes % pieceLength min 1)).toInt
+
+  /**
+    * Name of the:
+    *   file, if single; or
+    *   directory, if multiple
+    * This is purely advisory
+    */
+  val name: String
 }
 
 case class SingleFileMetaInfo
@@ -71,11 +81,7 @@ case class SingleFileMetaInfo
   override val pieceLength: Int,
   override val pieces: String,
   override val privateTorrent: Option[Boolean],
-
-  /**
-   * The filename. This is purely advisory.
-   */
-  name: String,
+  override val name: String,
 
   /**
    * Length of the file in bytes.
@@ -112,12 +118,7 @@ case class MultiFileMetaInfo
   override val pieceLength: Int,
   override val pieces: String,
   override val privateTorrent: Option[Boolean],
-
-  /**
-   * The file path of the directory in which to store all the files. This is
-   * purely advisory.
-   */
-  name: String,
+  override val name: String,
 
   files: List[FileInfo]
 

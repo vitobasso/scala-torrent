@@ -4,24 +4,26 @@ import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerSharing.SendToPeer
+import com.dominikgruber.scalatorrent.actor.Storage.Status
 import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, BlockSize, NextRequest, ReceivedPiece}
-import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerResponseReceived}
+import com.dominikgruber.scalatorrent.actor.Tracker.SendEventStarted
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece, Request}
-import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithSuccess}
+import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet
 
-class TorrentSpec extends ActorSpec {
+class TorrentLeechingSpec extends ActorSpec {
   outer =>
 
   val meta: MetaInfo = Mocks.metaInfo(
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
   val tracker = TestProbe("tracker")
+  val storage = TestProbe("storage")
   val coordinator = TestProbe("coordinator")
-  val totalBlocks = meta.fileInfo.totalBytes/BlockSize
+  val totalBlocks: Long = meta.fileInfo.totalBytes/BlockSize
 
   "test pre-conditions" must {
     "be satisfied" in {
@@ -31,26 +33,26 @@ class TorrentSpec extends ActorSpec {
     }
   }
 
-  "a Torrent actor" must {
+  "a Torrent actor, when downloading" must {
 
     val torrent: ActorRef = {
       def createActor = new Torrent("", meta, coordinator.ref, 0) {
         override val tracker: ActorRef = outer.tracker.ref
+        override val storage: ActorRef = outer.storage.ref
       }
       system.actorOf(Props(createActor), "torrent")
     }
 
     "say hi to tracker" in {
-      //after creating the actor
+      torrent ! Status(BitSet.empty)
       tracker expectMsg SendEventStarted(0, 0)
     }
 
     "create peer connections" in {
       val peer1 = Peer(None, "ip1", 0)
       val peer2 = Peer(None, "ip2", 0)
-      torrent ! TrackerResponseReceived {
-        TrackerResponseWithSuccess(0, None, None, 0, 0, List(peer1, peer2), None)
-      }
+      torrent ! Mocks.trackerResponse(List(peer1, peer2))
+
       coordinator expectMsg ConnectToPeer(peer1, meta)
       coordinator expectMsg ConnectToPeer(peer2, meta)
     }

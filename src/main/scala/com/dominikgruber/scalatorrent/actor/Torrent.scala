@@ -4,11 +4,13 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.actor.PeerSharing.{NothingToRequest, SendToPeer}
+import com.dominikgruber.scalatorrent.actor.Storage.{Complete, Status, StatusPlease, Store}
 import com.dominikgruber.scalatorrent.actor.Torrent._
-import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed, TrackerResponseReceived}
+import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.metainfo.SelfInfo._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece}
+import com.dominikgruber.scalatorrent.terminal.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithFailure, TrackerResponseWithSuccess}
 import com.dominikgruber.scalatorrent.transfer.TransferStatus
 
@@ -25,35 +27,43 @@ object Torrent {
   case class AreWeInterested(partsAvailable: BitSet)
   case class NextRequest(partsAvailable: BitSet)
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
-  case object ReportPlease
 }
 
 class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   extends Actor with ActorLogging {
 
   val tracker: ActorRef = createTrackerActor()
+  val storage: ActorRef = createStorageActor()
+  val transferStatus = TransferStatus(meta)
 
   override def preStart(): Unit = {
-    tracker ! SendEventStarted(0, 0)
+    storage ! StatusPlease
   }
 
-  override def receive: Receive = findingPeers
+  override def receive: Receive = catchingUp
+
+  def catchingUp: Receive = {
+    case Status(piecesWeHave) =>
+      log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
+      piecesWeHave foreach transferStatus.completePiece
+      tracker ! SendEventStarted(0, 0)
+      context become findingPeers
+    case Complete =>
+      //TODO seed
+  }
 
   def findingPeers: Receive = {
-    case TrackerResponseReceived(res) => res match { // from Tracker
-      case s: TrackerResponseWithSuccess =>
-        log.debug(s"[$name] Request to Tracker successful: $res")
-        connectToPeers(s.peers)
-        context become sharing
-      case f: TrackerResponseWithFailure =>
-        log.warning(s"[$name] Request to Tracker failed: ${f.reason}")
-    }
+    case s: TrackerResponseWithSuccess => // from Tracker
+      log.debug(s"[$name] Request to Tracker successful: $s")
+      connectToPeers(s.peers)
+      context become sharing
+
+    case f: TrackerResponseWithFailure =>
+      log.warning(s"[$name] Request to Tracker failed: ${f.reason}")
 
     case TrackerConnectionFailed(msg) =>
       log.warning(s"[$name] Connection to Tracker failed: $msg")
   }
-
-  val transferStatus = TransferStatus(meta)
 
   def sharing: Receive = {
 
@@ -70,8 +80,11 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
-      //TODO persist data
-      transferStatus.markBlockAsCompleted(piece.index, piece.begin/BlockSize)
+      transferStatus
+        .addBlock(piece.index, piece.begin/BlockSize, piece.block.toArray)
+        .foreach { completePiece =>
+            storage ! Store(piece.index, completePiece)
+        }
       requestNewBlock(piecesAvailable, sender)
 
     case ReportPlease =>
@@ -103,6 +116,11 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   private def createTrackerActor(): ActorRef = {
     val props = Props(classOf[Tracker], meta, selfPeerId, portIn)
     context.actorOf(props, s"tracker-${meta.hash}")
+  }
+
+  private def createStorageActor(): ActorRef = {
+    val props = Props(classOf[Storage], meta.fileInfo)
+    context.actorOf(props, s"storage-${meta.hash}")
   }
 
 }

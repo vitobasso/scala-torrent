@@ -7,43 +7,58 @@ import com.dominikgruber.scalatorrent.transfer.PickRandom._
 
 import scala.collection.{BitSet, mutable}
 
+/**
+  * Keeps track of which pieces are done, missing or currently being downloaded.
+  * Keeps data in memory for the pieces currently in progress.
+  *
+  * Picks a random missing block to be downloaded next.
+  *   - prefers completing a piece in progress over starting a new one
+  */
 case class TransferStatus(metaInfo: MetaInfo) {
 
   val totalPieces: Int = metaInfo.fileInfo.numPieces
   val blocksPerPiece: Int = metaInfo.fileInfo.pieceLength / BlockSize
 
   type Flags = mutable.Seq[Boolean]
+  type Bytes = Array[Byte]
+  type Blocks = mutable.Map[Int, Bytes]
 
   /**
     * Marks which pieces from 0 to [[totalPieces]] we have completed
     */
-  private val pieceStatus: Flags =
+  val pieceStatus: Flags =
     mutable.Seq.fill(totalPieces)(false)
 
   /**
-    * Marks which blocks we have from each piece being actively downloaded
+    * Stores blocks from each piece being currently downloaded
     */
-  private val blockStatus: mutable.Map[Int, Flags] =
+  private val piecesInProgress: mutable.Map[Int, Blocks] =
     mutable.Map.empty
 
-  def markBlockAsCompleted(piece: Int, block: Int): Unit = {
-    for {
-      blocks <- activeBlocks(piece)
-    } yield {
-      blocks(block) = true
-      if(blocks.forall(_ == true)) {
-        pieceStatus(piece) = true
-        blockStatus -= piece
+  def addBlock(piece: Int, block: Int, data: Bytes): Option[Bytes] =
+    getBlocksIfPieceIncomplete(piece)
+      .flatMap { blocks =>
+        blocks(block) = data
+        if(blocks.size == blocksPerPiece)
+          completePiece(piece)
+        else None
       }
-    }
+
+  def completePiece(piece: Int): Option[Bytes] = {
+    pieceStatus(piece) = true
+    piecesInProgress.remove(piece)
+      .map(aggregateBlocks)
   }
+
+  private def aggregateBlocks(blocks: Blocks): Bytes =
+    blocks.toArray.sortBy(_._1).flatMap(_._2)
 
   /**
     * @param available in the remote peer
     * @return whether they have any block that we're missing
     */
   def isAnyPieceNew(available: BitSet): Boolean =
-    newPieces(available) nonEmpty
+    newPieces(available).nonEmpty
 
   private def newPieces(available: BitSet) = {
     val alreadyHave = BitSetUtil.fromBooleans(pieceStatus)
@@ -57,7 +72,7 @@ case class TransferStatus(metaInfo: MetaInfo) {
   def pickNewBlock(available: BitSet): Option[Request] = {
 
     def randomActivePiece: Option[Int] = {
-      val activePieces = BitSet(blockStatus.keys.toSeq:_*)
+      val activePieces = BitSet(piecesInProgress.keys.toSeq:_*)
       val intersection = activePieces & available
       intersection.toSeq.randomElement
     }
@@ -69,24 +84,32 @@ case class TransferStatus(metaInfo: MetaInfo) {
       randomActivePiece
         .orElse(randomMissingPiece)
 
+    def randomMissingBlock(piece: Int): Option[Int] =
+      getBlocksIfPieceIncomplete(piece).flatMap {
+        blocks =>
+          val allBlocks = BitSet(0 until blocksPerPiece: _*)
+          val blocksWeHave = BitSet(blocks.keys.toSeq: _*)
+          val blocksMissing = allBlocks &~ blocksWeHave
+          blocksMissing.toSeq.randomElement
+      }
+
     for {
       piece <- pickPiece
-      blocks <- activeBlocks(piece)
-      blockIndex <- blocks.randomIndexOf(false)
+      blockIndex <- randomMissingBlock(piece)
       blockBegin = blockIndex * BlockSize
     } yield Request(piece, blockBegin, BlockSize)
   }
 
-  private def activeBlocks(piece: Int): Option[Flags] =
+  private def getBlocksIfPieceIncomplete(piece: Int): Option[Blocks] =
     if(pieceStatus(piece)) None
     else {
-      def allBlocksPending: Flags = mutable.Seq.fill(blocksPerPiece)(false)
-      Some(blockStatus.getOrElseUpdate(piece, allBlocksPending))
+      def emptyBlocks: Blocks = mutable.Map.empty[Int, Bytes]
+      Some(piecesInProgress.getOrElseUpdate(piece, emptyBlocks))
     }
 
   def report: ProgressReport = {
     def pieceProgress(index: Int): Option[Double] =
-      blockStatus.get(index).map { _.count(identity).toFloat / blocksPerPiece }
+      piecesInProgress.get(index).map { _.size.toFloat / blocksPerPiece }
 
     val progressPerPiece = pieceStatus.zipWithIndex.map {
       case (complete, index) =>
@@ -105,6 +128,6 @@ object BitSetUtil {
   }
 }
 
-case class ProgressReport(totalPieces: Int, pieceProgress: Map[Int, Double]) {
-  val overallProgress: Double = pieceProgress.values.sum / totalPieces
+case class ProgressReport(totalPieces: Int, progressPerPiece: Map[Int, Double]) {
+  val overallProgress: Double = progressPerPiece.values.sum / totalPieces
 }
