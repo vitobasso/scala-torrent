@@ -22,7 +22,6 @@ object Torrent {
     * https://wiki.theory.org/index.php/BitTorrentSpecification#Info_in_Single_File_Mode
     */
   val BlockSize: Int = 16 * 1024
-  val MaxActivePieces: Int = 1
   case class PeerReady(conn: ActorRef, peer: Peer)
   case class AreWeInterested(partsAvailable: BitSet)
   case class NextRequest(partsAvailable: BitSet)
@@ -45,7 +44,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   def catchingUp: Receive = {
     case Status(piecesWeHave) =>
       log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
-      piecesWeHave foreach transferStatus.completePiece
+      piecesWeHave foreach transferStatus.markPieceCompleted
       tracker ! SendEventStarted(0, 0)
       context become findingPeers
     case Complete =>
@@ -76,7 +75,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
         sender ! SendToPeer(Interested())
 
     case NextRequest(piecesAvailable) => // from PeerSharing
-      requestNewBlock(piecesAvailable, sender) //TODO begin with 5 requests
+      requestNewBlocks(piecesAvailable, sender) //TODO begin with 5 requests
 
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
@@ -85,19 +84,19 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
         .foreach { completePiece =>
             storage ! Store(piece.index, completePiece)
         }
-      requestNewBlock(piecesAvailable, sender)
+      requestNewBlocks(piecesAvailable, sender)
 
     case ReportPlease =>
       sender ! transferStatus.report
   }
 
-  def requestNewBlock(piecesAvailable: BitSet, peerSharing: ActorRef): Unit =
-    transferStatus.pickNewBlock(piecesAvailable) match {
-      case Some(request) =>
-        peerSharing ! SendToPeer(request)
-      case None =>
-        peerSharing ! NothingToRequest
+  def requestNewBlocks(piecesAvailable: BitSet, peerSharing: ActorRef): Unit = {
+    transferStatus.forEachNewRequest(piecesAvailable) {
+      request => peerSharing ! SendToPeer(request)
+    } elseIfEmpty {
+      peerSharing ! NothingToRequest
     }
+  }
 
   def connectToPeers(peers: List[Peer]): Unit = {
     val unique = peers.groupBy(_.address).map{

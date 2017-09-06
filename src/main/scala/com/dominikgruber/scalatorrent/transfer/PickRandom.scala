@@ -14,6 +14,8 @@ object PickRandom {
       case size  => Some(Random.nextInt(size))
     }
 
+    //TODO remove unused
+    //TODO or replace with this.zipWithIndex.collect ...
     def randomIndexOf(value: T): Option[Int] = {
 
       def hasAnyIn(range: Range): Boolean =

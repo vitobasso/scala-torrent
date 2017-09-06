@@ -9,7 +9,7 @@ import com.dominikgruber.scalatorrent.actor.Torrent.{BlockSize, ReceivedPiece}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Piece
 import com.dominikgruber.scalatorrent.terminal.ProgressReporting.ReportPlease
-import com.dominikgruber.scalatorrent.transfer.ProgressReport
+import com.dominikgruber.scalatorrent.transfer.TransferStatus.{ProgressReport, SimultaneousRequests}
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet
@@ -18,12 +18,12 @@ class TorrentStoringNewSpec extends ActorSpec {
   outer =>
 
   val meta: MetaInfo = Mocks.metaInfo(
-    totalLength = 6 * BlockSize,
+    totalLength = 8 * BlockSize,
     pieceLength = 2 * BlockSize)
   val tracker = TestProbe("tracker")
   val storage = TestProbe("storage")
   val coordinator = TestProbe("coordinator")
-  lazy val allAvailable = BitSet(0, 1, 2)
+  lazy val allAvailable = BitSet(0, 1, 2, 3)
 
   val torrent: ActorRef = {
     def createActor = new Torrent("", meta, coordinator.ref, 0) {
@@ -35,7 +35,7 @@ class TorrentStoringNewSpec extends ActorSpec {
 
   "a Torrent actor, when starting a torrent from scratch" must {
 
-    "report no progress" in {
+    "begin with no progress" in {
       //after creation
       storage.expectMsg(StatusPlease)
       torrent ! Status(BitSet.empty)
@@ -44,7 +44,7 @@ class TorrentStoringNewSpec extends ActorSpec {
       coordinator expectMsg ConnectToPeer(Mocks.peer, meta)
 
       torrent ! ReportPlease
-      expectMsg(ProgressReport(3, Map(0 -> 0, 1 -> 0, 2 -> 0)))
+      expectMsg(ProgressReport(0, Seq(0, 0, 0, 0)))
     }
 
     "store a complete Piece" in {
@@ -54,7 +54,8 @@ class TorrentStoringNewSpec extends ActorSpec {
       val block0 = Piece(index, 0 * BlockSize, bytes0)
       torrent ! ReceivedPiece(block0, allAvailable)
       storage.expectNoMsg()
-      expectMsgType[SendToPeer]
+      for(_ <- 1 to SimultaneousRequests)
+        expectMsgType[SendToPeer]
 
       val bytes1 = Mocks.block(1.toByte)
       val block1 = Piece(index, 1 * BlockSize, bytes1)
@@ -68,7 +69,7 @@ class TorrentStoringNewSpec extends ActorSpec {
 
     "report further progress" in {
       torrent ! ReportPlease
-      expectMsg(ProgressReport(3, Map(0 -> 0, 1 -> 1, 2 -> 0)))
+      expectMsg(ProgressReport(1/4.0, Seq(0, 1, 0, 0)))
     }
 
   }

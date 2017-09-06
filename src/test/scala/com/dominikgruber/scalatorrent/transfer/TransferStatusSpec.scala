@@ -3,6 +3,7 @@ package com.dominikgruber.scalatorrent.transfer
 import com.dominikgruber.scalatorrent.actor.Torrent.BlockSize
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Request
+import com.dominikgruber.scalatorrent.transfer.TransferStatus._
 import com.dominikgruber.scalatorrent.util.{Mocks, UnitSpec}
 import org.scalatest.PrivateMethodTester
 
@@ -12,24 +13,23 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
 
   it should "begin with all blocks missing" in {
     val state = TransferStatus(meta)
-    state.getPieceStatus shouldBe Seq(false, false, false)
-    state.getPiecesInProgress shouldBe empty
+    state.getPieces shouldBe Seq(Missing, Missing, Missing)
   }
 
   it should "mark a block" in {
     val state = TransferStatus(meta)
     state.addBlock(1, 1, data)
 
-    state.getPieceStatus shouldBe Seq(false, false, false)
-    state.getPiecesInProgress shouldBe Map(1 -> Map(1 -> data))
+    val Seq(Missing, InProgress(blocks), Missing) = state.getPieces
+    val Seq(MissingBlock, Received(observedData)) = blocks
+    observedData should contain theSameElementsInOrderAs data
   }
 
   it should "mark a whole piece" in {
     val state = TransferStatus(meta)
-    state.completePiece(2)
+    state.markPieceCompleted(2)
 
-    state.getPieceStatus shouldBe Seq(false, false, true)
-    state.getPiecesInProgress shouldBe empty
+    state.getPieces shouldBe Seq(Missing, Missing, Stored)
   }
 
   it should "mark a piece when marking the last block" in {
@@ -37,8 +37,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
     state.addBlock(1, 0, data)
     state.addBlock(1, 1, data)
 
-    state.getPieceStatus shouldBe Seq(false, true, false)
-    state.getPiecesInProgress shouldBe empty
+    state.getPieces shouldBe Seq(Missing, Stored, Missing)
   }
 
   it should "ignore a redundant mark" in {
@@ -46,13 +45,13 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
 
     state.addBlock(1, 0, data)
     state.addBlock(1, 0, data)
-    state.getPieceStatus shouldBe Seq(false, false, false)
-    state.getPiecesInProgress shouldBe Map(1 -> Map(0 -> data))
+    val Seq(Missing, InProgress(blocks), Missing) = state.getPieces
+    val Seq(Received(observedData), MissingBlock) = blocks
+    observedData should contain theSameElementsInOrderAs data
 
     state.addBlock(1, 1, data)
     state.addBlock(1, 0, data)
-    state.getPieceStatus shouldBe Seq(false, true, false)
-    state.getPiecesInProgress shouldBe empty
+    state.getPieces shouldBe Seq(Missing, Stored, Missing)
   }
 
   it should "only pick missing parts" in {
@@ -63,7 +62,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
     state.addBlock(1, 1, data)
 
     state.pickNewBlock(allAvailable) foreach {
-      case Request(piece, block, _) => piece shouldBe 2
+      case Request(piece, _, _) => piece shouldBe 2
     }
   }
 
@@ -74,7 +73,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
     state.addBlock(2, 0, data)
 
     state.pickNewBlock(allAvailable) foreach {
-      case Request(piece, block, _) => block shouldBe 1 * BlockSize
+      case Request(_, block, _) => block shouldBe 1 * BlockSize
     }
   }
 
@@ -96,16 +95,11 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   val allAvailable = BitSet(0, 1, 2)
   val data: Array[Byte] = Array.empty[Byte]
 
-  type Flags = mutable.Seq[Boolean]
-  type Bytes = Vector[Byte]
-  type Blocks = mutable.Map[Int, Bytes]
-  val pieceStatus = PrivateMethod[Flags]('pieceStatus)
-  val piecesInProgress = PrivateMethod[mutable.Map[Int, Blocks]]('piecesInProgress)
+  val pieces = PrivateMethod[mutable.Seq[PieceStatus]]('pieces)
+  val pendingRequests = PrivateMethod[mutable.Map[Request, Long]]('pendingRequests)
   implicit class WhiteBox(sut: TransferStatus) {
-    def getPieceStatus: Flags =
-      sut invokePrivate pieceStatus()
-    def getPiecesInProgress: mutable.Map[Int, Blocks] =
-      sut invokePrivate piecesInProgress()
+    def getPieces: mutable.Seq[PieceStatus] =
+      sut invokePrivate pieces()
   }
 
 }
