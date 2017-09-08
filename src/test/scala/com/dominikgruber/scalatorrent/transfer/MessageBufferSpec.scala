@@ -8,12 +8,12 @@ import com.dominikgruber.scalatorrent.util.UnitSpec
 class MessageBufferSpec extends UnitSpec {
 
   it should "receive a Keepalive" in {
-    bytes("00 00 00 00") shouldGiveMessage
+    bytes("00 00 00 00") shouldProduceMessage
       Result(List(KeepAlive()))
   }
 
   it should "receive a double Keepalive" in  {
-    bytes("00 00 00 00 00 00 00 00") shouldGiveMessage
+    bytes("00 00 00 00 00 00 00 00") shouldProduceMessage
       Result(List(KeepAlive(), KeepAlive()))
   }
 
@@ -39,7 +39,7 @@ class MessageBufferSpec extends UnitSpec {
   }
 
   it should "drop rubbish if length is negative" in  {
-    bytes("FF 00 00 00 01 01") shouldGiveMessage Result(rubbish = bytes("FF 00 00 00 01 01").toVector)
+    bytes("FF 00 00 00 01 01") shouldProduceMessage Result(rubbish = bytes("FF 00 00 00 01 01").toVector)
   }
 
   it should "receive a Piece in parts" in {
@@ -74,10 +74,10 @@ class MessageBufferSpec extends UnitSpec {
     }
     def testMessage = test(MessageMode)
     def testHandshake = test(HandshakeMode)
-    def shouldGiveMessage(expected: Result[Message]): Unit = {
+    def shouldProduceMessage(expected: Result[Message]): Unit = {
       test(MessageMode) shouldBe expected
     }
-    def shouldGiveHandshake(expected: Result[Handshake]): Unit = {
+    def shouldProduceHandshake(expected: Result[Handshake]): Unit = {
       test(HandshakeMode) shouldBe expected
     }
   }

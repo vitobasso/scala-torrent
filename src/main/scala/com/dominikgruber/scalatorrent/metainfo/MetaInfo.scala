@@ -121,7 +121,7 @@ object MetaInfo {
         if (info.contains("announce-list")) Some(info("announce-list").asInstanceOf[List[List[String]]])
         else None,
       creationDate =
-        if (info.contains("creation date")) Some(new Date(info("creation date").asInstanceOf[Int].toLong * 1000l))
+        if (info.contains("creation date")) Some(new Date(info("creation date").asInstanceOf[Long] * 1000l))
         else None,
       comment =
         if (info.contains("comment")) Some(info("comment").asInstanceOf[String])

@@ -31,11 +31,8 @@ object Boot extends App {
   val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator]), "coordinator")
 
   // TMP
-//  addTorrentFile("/Users/victorbasso/Downloads/Neon_Genesis_Evangelion.torrent")
-//  addTorrentFile("/Users/victorbasso/Downloads/The_Godfather_Part_III_1990.torrent")
-//  addTorrentFile("/Users/victorbasso/Downloads/Titanic_1997.torrent")
-//  addTorrentFile("/Users/victorbasso/Downloads/pinocchio1mb.torrent")
-  addTorrentFile("/Users/victorbasso/Downloads/ubuntu-12.04.5-desktop-amd64.iso.torrent")
+  addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/ubuntu-12.04.5-desktop-amd64.iso.torrent")
+//  addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/CC_1916_07_10_TheVagabond_archive.torrent")
 //  addTorrentFile("/Users/victorbasso/Downloads/no_checksums.torrent")
   // TMP
 

@@ -3,21 +3,21 @@ package com.dominikgruber.scalatorrent.transfer
 import com.dominikgruber.scalatorrent.actor.Torrent.BlockSize
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Request
-import com.dominikgruber.scalatorrent.transfer.TransferStatus._
+import com.dominikgruber.scalatorrent.transfer.TransferState._
 import com.dominikgruber.scalatorrent.util.{Mocks, UnitSpec}
 import org.scalatest.PrivateMethodTester
 
 import scala.collection.{BitSet, mutable}
 
-class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
+class TransferStateSpec extends UnitSpec with PrivateMethodTester {
 
   it should "begin with all blocks missing" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.getPieces shouldBe Seq(Missing, Missing, Missing)
   }
 
   it should "mark a block" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.addBlock(1, 1, data)
 
     val Seq(Missing, InProgress(blocks), Missing) = state.getPieces
@@ -26,14 +26,14 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "mark a whole piece" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.markPieceCompleted(2)
 
     state.getPieces shouldBe Seq(Missing, Missing, Stored)
   }
 
   it should "mark a piece when marking the last block" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.addBlock(1, 0, data)
     state.addBlock(1, 1, data)
 
@@ -41,7 +41,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "ignore a redundant mark" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
 
     state.addBlock(1, 0, data)
     state.addBlock(1, 0, data)
@@ -55,7 +55,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "only pick missing parts" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.addBlock(0, 0, data)
     state.addBlock(0, 1, data)
     state.addBlock(1, 0, data)
@@ -67,7 +67,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "only pick missing blocks" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.addBlock(0, 0, data)
     state.addBlock(1, 0, data)
     state.addBlock(2, 0, data)
@@ -78,7 +78,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "pick None when complete" in {
-    val state = TransferStatus(meta)
+    val state = TransferState(meta)
     state.addBlock(0, 0, data)
     state.addBlock(0, 1, data)
     state.addBlock(1, 0, data)
@@ -97,7 +97,7 @@ class TransferStatusSpec extends UnitSpec with PrivateMethodTester {
 
   val pieces = PrivateMethod[mutable.Seq[PieceStatus]]('pieces)
   val pendingRequests = PrivateMethod[mutable.Map[Request, Long]]('pendingRequests)
-  implicit class WhiteBox(sut: TransferStatus) {
+  implicit class WhiteBox(sut: TransferState) {
     def getPieces: mutable.Seq[PieceStatus] =
       sut invokePrivate pieces()
   }

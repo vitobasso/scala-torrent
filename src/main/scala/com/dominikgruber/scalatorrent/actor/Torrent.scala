@@ -12,7 +12,7 @@ import com.dominikgruber.scalatorrent.metainfo.SelfInfo._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Interested, Piece}
 import com.dominikgruber.scalatorrent.terminal.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithFailure, TrackerResponseWithSuccess}
-import com.dominikgruber.scalatorrent.transfer.TransferStatus
+import com.dominikgruber.scalatorrent.transfer.TransferState
 
 import scala.collection.BitSet
 
@@ -33,7 +33,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
   val tracker: ActorRef = createTrackerActor()
   val storage: ActorRef = createStorageActor()
-  val transferStatus = TransferStatus(meta)
+  val transferState = TransferState(meta)
 
   override def preStart(): Unit = {
     storage ! StatusPlease
@@ -44,7 +44,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   def catchingUp: Receive = {
     case Status(piecesWeHave) =>
       log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
-      piecesWeHave foreach transferStatus.markPieceCompleted
+      piecesWeHave foreach transferState.markPieceCompleted
       tracker ! SendEventStarted(0, 0)
       context become findingPeers
     case Complete =>
@@ -71,7 +71,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       peerConn ! SetListener(peerSharing)
 
     case AreWeInterested(piecesAvailable) => // from PeerSharing
-      if(transferStatus.isAnyPieceNew(piecesAvailable))
+      if(transferState.isAnyPieceNew(piecesAvailable))
         sender ! SendToPeer(Interested())
 
     case NextRequest(piecesAvailable) => // from PeerSharing
@@ -79,7 +79,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
 
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
-      transferStatus
+      transferState
         .addBlock(piece.index, piece.begin/BlockSize, piece.block.toArray)
         .foreach { completePiece =>
             storage ! Store(piece.index, completePiece)
@@ -87,11 +87,11 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       requestNewBlocks(piecesAvailable, sender)
 
     case ReportPlease =>
-      sender ! transferStatus.report
+      sender ! transferState.report
   }
 
   def requestNewBlocks(piecesAvailable: BitSet, peerSharing: ActorRef): Unit = {
-    transferStatus.forEachNewRequest(piecesAvailable) {
+    transferState.forEachNewRequest(piecesAvailable) {
       request => peerSharing ! SendToPeer(request)
     } elseIfEmpty {
       peerSharing ! NothingToRequest
