@@ -6,8 +6,9 @@ import com.dominikgruber.scalatorrent.actor.Torrent.{AreWeInterested, NextReques
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol._
 import com.dominikgruber.scalatorrent.tracker.Peer
-import com.dominikgruber.scalatorrent.transfer.BitSetUtil
 import com.dominikgruber.scalatorrent.util.Asking
+
+import scala.collection.BitSet
 
 object PeerSharing {
   case class SendToPeer(msg: MessageOrHandshake)
@@ -41,7 +42,7 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
 
   override def receive: Receive = {
     case p: Piece => // from PeerConnection
-      torrent ! ReceivedPiece(p, BitSetUtil.fromBooleans(bitfield))
+      torrent ! ReceivedPiece(p, toBitSet(bitfield))
     case b: Bitfield => // from PeerConnection
       //TODO validate length
       bitfield = b.availablePieces
@@ -51,7 +52,7 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
       if(!amInterested) checkIfInterested()
     case _: Unchoke => // from PeerConnection
       peerChoking = false
-      torrent ! NextRequest(BitSetUtil.fromBooleans(bitfield))
+      torrent ! NextRequest(toBitSet(bitfield))
     case NothingToRequest => // from Torrent
       amInterested = false
       peerConn ! SendToPeer(NotInterested())
@@ -61,7 +62,7 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
   }
 
   def checkIfInterested(): Unit = {
-    val response = torrent ? AreWeInterested(BitSetUtil.fromBooleans(bitfield))
+    val response = torrent ? AreWeInterested(toBitSet(bitfield))
     response.onSuccess {
       case msgToSend @ SendToPeer(msg) =>
         amInterested = msg.isInstanceOf[Interested]
@@ -69,5 +70,9 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
     }
   }
 
+  def toBitSet(bools: Seq[Boolean]): BitSet = {
+    val indexesOfTrue = bools.zipWithIndex.collect { case (true, i) => i }
+    BitSet(indexesOfTrue: _*)
+  }
 
 }

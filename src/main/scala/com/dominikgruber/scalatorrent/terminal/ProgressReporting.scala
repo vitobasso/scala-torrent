@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.terminal
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import com.dominikgruber.scalatorrent.transfer.ProgressReport
+import com.dominikgruber.scalatorrent.transfer.TransferStatus.ProgressReport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -33,12 +33,12 @@ object ProgressReporting {
   import com.dominikgruber.scalatorrent.terminal.AnsiEscape._
   def showProgress(progress: ProgressReport): Unit = {
     val parts: String = progress.progressPerPiece
-      .filter{ case (_, p) => p > 0 && p < 1 }
-      .mapValues(percent)
-      .map{ case (i, p) => s"$i: $p" }
+      .zipWithIndex
+      .collect{ case (p, i) if p > 0 && p < 1 => s"$i: ${percent(p)}" }
       .mkString(", ")
+    val total = percent(progress.overallProgress)
     val partsSection = if(parts.isEmpty) "" else s", part $parts"
-    lineAbove(s"total: ${percent(progress.overallProgress)}$partsSection")
+    lineAbove(s"total: $total$partsSection")
   }
 
   def percent(v: Double): String = "%.0f%%" format (v * 100)

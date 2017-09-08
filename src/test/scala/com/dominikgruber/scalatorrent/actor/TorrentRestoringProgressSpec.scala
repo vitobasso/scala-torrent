@@ -9,7 +9,7 @@ import com.dominikgruber.scalatorrent.actor.Torrent.{BlockSize, ReceivedPiece}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Piece
 import com.dominikgruber.scalatorrent.terminal.ProgressReporting.ReportPlease
-import com.dominikgruber.scalatorrent.transfer.ProgressReport
+import com.dominikgruber.scalatorrent.transfer.TransferStatus.ProgressReport
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet
@@ -44,7 +44,7 @@ class TorrentRestoringProgressSpec extends ActorSpec {
       coordinator expectMsg ConnectToPeer(Mocks.peer, meta)
 
       torrent ! ReportPlease
-      expectMsg(ProgressReport(3, Map(0 -> 0, 1 -> 1, 2 -> 1)))
+      expectMsg(ProgressReport(2/3.0, Seq(0, 1, 1)))
     }
 
     "store a complete Piece" in {
@@ -68,7 +68,7 @@ class TorrentRestoringProgressSpec extends ActorSpec {
 
     "report further progress" in {
       torrent ! ReportPlease
-      expectMsg(ProgressReport(3, Map(0 -> 1, 1 -> 1, 2 -> 1)))
+      expectMsg(ProgressReport(1, Seq(1, 1, 1)))
     }
 
   }

@@ -18,20 +18,13 @@ class TorrentLeechingSpec extends ActorSpec {
   outer =>
 
   val meta: MetaInfo = Mocks.metaInfo(
-    totalLength = 6 * BlockSize,
+    totalLength = 8 * BlockSize,
     pieceLength = 2 * BlockSize)
+  val allAvailable = BitSet(0, 1, 2, 3)
   val tracker = TestProbe("tracker")
   val storage = TestProbe("storage")
   val coordinator = TestProbe("coordinator")
   val totalBlocks: Long = meta.fileInfo.totalBytes/BlockSize
-
-  "test pre-conditions" must {
-    "be satisfied" in {
-      // following tests depend on this
-      totalBlocks shouldBe 6
-      meta.fileInfo.numPieces shouldBe 3
-    }
-  }
 
   "a Torrent actor, when downloading" must {
 
@@ -63,38 +56,52 @@ class TorrentLeechingSpec extends ActorSpec {
       msg shouldBe Interested()
     }
 
-    "send Request in response to MoreRequests" in {
+    "send 5 Requests in response to MoreRequests" in {
       torrent ! NextRequest(allAvailable)
-      ObservedRequests.expectRequest //TODO x5
+      for(_ <- 1 to 5) //5 = TransferStatus.SimultaneousRequests
+        ObservedRequests.expectRequest
+      expectNoMsg()
     }
 
-    "send Request in response to ReceivedPiece" in {
-      val firstRequest = {
-        ObservedRequests.received.size shouldBe 1
-        ObservedRequests.received.head
+    "request 2 blocks from the same piece" in {
+      ObservedRequests.received match {
+        case Seq(req1, req2, _, _, _) =>
+          req2.index shouldBe req1.index      //same piece
+          req2.begin should not be req1.begin //diff block
       }
+    }
+
+    "request 2 more blocks from a 2nd piece" in {
+      ObservedRequests.received match {
+        case Seq(req1, _, req3, req4, _) =>
+          req3.index should not be req1.index //new piece
+          req4.index shouldBe req3.index      //but same piece
+          req4.begin should not be req3.begin //diff block
+      }
+    }
+
+    "request 1 more block from a 3rd piece" in {
+      ObservedRequests.received match {
+        case Seq(req1, _, req3, _, req5) =>
+          req5.index should not be req1.index //new piece
+          req5.index should not be req3.index
+      }
+    }
+
+    "send a new Request in response to ReceivedPiece" in {
+      val firstRequest = ObservedRequests.received.head
       val piece = Piece(firstRequest.index, firstRequest.begin, Vector.empty)
       torrent ! ReceivedPiece(piece, allAvailable)
       ObservedRequests.expectRequest
-    }
-
-    "pick the same index for the first and second Requests" in {
-      val (firstRequest, secondRequest) = {
-        ObservedRequests.received.size shouldBe 2
-        (ObservedRequests.received.head, ObservedRequests.received(1))
-      }
-      secondRequest.index shouldBe firstRequest.index
-      secondRequest.begin should not be firstRequest.begin
+      expectNoMsg()
     }
 
     "not send Interested when a peer hasn't got any new pieces" in {
-      val secondRequest = {
-        ObservedRequests.received.size shouldBe 2
-        ObservedRequests.received(1)
-      }
+      val secondRequest = ObservedRequests.received(1)
       val piece = Piece(secondRequest.index, secondRequest.begin, Vector.empty)
       torrent ! ReceivedPiece(piece, allAvailable)
       ObservedRequests.expectRequest
+      expectNoMsg()
 
       val pieceWeAlreadyHave = secondRequest.index
       torrent ! AreWeInterested(BitSet(pieceWeAlreadyHave))
@@ -111,7 +118,6 @@ class TorrentLeechingSpec extends ActorSpec {
       }
     }
 
-    lazy val allAvailable = BitSet(0, 1, 2)
   }
 
 }
