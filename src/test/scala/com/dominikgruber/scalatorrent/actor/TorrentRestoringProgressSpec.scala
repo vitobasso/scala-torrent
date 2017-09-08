@@ -9,7 +9,7 @@ import com.dominikgruber.scalatorrent.actor.Torrent.{BlockSize, ReceivedPiece}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Piece
 import com.dominikgruber.scalatorrent.terminal.ProgressReporting.ReportPlease
-import com.dominikgruber.scalatorrent.transfer.TransferStatus.ProgressReport
+import com.dominikgruber.scalatorrent.transfer.TransferState.ProgressReport
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet

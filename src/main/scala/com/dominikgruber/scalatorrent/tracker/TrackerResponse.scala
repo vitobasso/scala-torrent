@@ -69,18 +69,18 @@ object TrackerResponse {
       TrackerResponseWithFailure(response("failure reason").asInstanceOf[String])
     else
       TrackerResponseWithSuccess(
-        interval = response("interval").asInstanceOf[Int],
+        interval = response("interval").asInstanceOf[Long].toInt,
         minInterval =
-          if (response.contains("min interval")) Some(response("min interval").asInstanceOf[Int])
+          if (response.contains("min interval")) Some(response("min interval").asInstanceOf[Long].toInt)
           else None,
         trackerId =
           if (response.contains("tracker id")) Some(response("tracker id").asInstanceOf[String])
           else None,
         complete =
-          if (response.contains("complete")) response("complete").asInstanceOf[Int]
+          if (response.contains("complete")) response("complete").asInstanceOf[Long].toInt
           else 0,
         incomplete =
-          if (response.contains("incomplete")) response("incomplete").asInstanceOf[Int]
+          if (response.contains("incomplete")) response("incomplete").asInstanceOf[Long].toInt
           else 0,
         peers = Peer.createList(response("peers")),
         warning =

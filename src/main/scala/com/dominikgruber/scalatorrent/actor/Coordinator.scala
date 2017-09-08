@@ -59,7 +59,9 @@ class Coordinator extends Actor with ActorLogging with Asking {
       torrents(meta.hash) = (torrentActor, meta)
       sender ! TorrentAddedSuccessfully(file, torrentActor)
     } catch {
-      case e: Exception => sender ! TorrentFileInvalid(file, e.getMessage)
+      case e: Exception =>
+        e.printStackTrace()
+        sender ! TorrentFileInvalid(file, s"${e.getClass.getName}: ${e.getMessage}")
     }
   }
 

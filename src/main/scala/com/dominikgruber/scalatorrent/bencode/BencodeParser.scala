@@ -27,7 +27,7 @@ object BencodeParser extends RegexParsers {
    * used, one cannot pad the Integer with zeroes. such as i04e. However, i0e is
    * valid.
    */
-  def integer: Parser[Int] = "i" ~> """(0|\-?[1-9]\d*)""".r <~ "e" ^^ (_.toInt)
+  def integer: Parser[Long] = "i" ~> """(0|\-?[1-9]\d*)""".r <~ "e" ^^ (_.toLong)
 
   /**
    * Lists are encoded as follows: l<bencoded values>e

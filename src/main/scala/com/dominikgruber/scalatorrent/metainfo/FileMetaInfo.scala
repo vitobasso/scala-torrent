@@ -86,7 +86,7 @@ case class SingleFileMetaInfo
   /**
    * Length of the file in bytes.
    */
-  length: Int,
+  length: Long,
 
   /**
    * A 32-character hexadecimal string corresponding to the MD5 sum of the file.
@@ -144,13 +144,13 @@ object FileMetaInfo {
     if (info.contains("length"))
       SingleFileMetaInfo(
         infoHash = infoHash,
-        pieceLength = info("piece length").asInstanceOf[Int],
+        pieceLength = info("piece length").asInstanceOf[Long].toInt,
         pieces = info("pieces").asInstanceOf[String],
         privateTorrent =
-          if (info.contains("private")) Some(info("private").asInstanceOf[Int] == 1)
+          if (info.contains("private")) Some(info("private").asInstanceOf[Long].toInt == 1)
           else None,
         name = info("name").asInstanceOf[String],
-        length = info("length").asInstanceOf[Int],
+        length = info("length").asInstanceOf[Long],
         md5sum =
           if (info.contains("md5sum")) Some(info("md5sum").asInstanceOf[String])
           else None
@@ -158,10 +158,10 @@ object FileMetaInfo {
     else if (info.contains("files"))
       MultiFileMetaInfo(
         infoHash = infoHash,
-        pieceLength = info("piece length").asInstanceOf[Int],
+        pieceLength = info("piece length").asInstanceOf[Long].toInt,
         pieces = info("pieces").asInstanceOf[String],
         privateTorrent =
-          if (info.contains("private")) Some(info("private").asInstanceOf[Int] == 1)
+          if (info.contains("private")) Some(info("private").asInstanceOf[Long].toInt == 1)
           else None,
         name = info("name").asInstanceOf[String],
         files = FileInfo(info("files").asInstanceOf[List[Map[String,Any]]])

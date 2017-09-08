@@ -9,7 +9,7 @@ case class FileInfo
   /**
    * Length of the file in bytes.
    */
-  length: Int,
+  length: Long,
 
   /**
    * A 32-character hexadecimal string corresponding to the MD5 sum of the file.
@@ -44,7 +44,7 @@ object FileInfo {
 
   def apply(file: Map[String,Any]): FileInfo =
     FileInfo(
-      length = file("length").asInstanceOf[Int],
+      length = file("length").asInstanceOf[Long],
       md5sum =
         if (file.contains("md5sum")) Some(file("md5sum").asInstanceOf[String])
         else None,

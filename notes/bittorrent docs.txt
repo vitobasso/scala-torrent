@@ -11,3 +11,6 @@ http://www.kristenwidman.com/blog/71/how-to-write-a-bittorrent-client-part-2/
 
 #bencode
 http://torrenteditor.com/
+
+#free torrents
+https://archive.org/

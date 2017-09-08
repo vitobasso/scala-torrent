@@ -58,7 +58,7 @@ class TorrentLeechingSpec extends ActorSpec {
 
     "send 5 Requests in response to MoreRequests" in {
       torrent ! NextRequest(allAvailable)
-      for(_ <- 1 to 5) //5 = TransferStatus.SimultaneousRequests
+      for(_ <- 1 to 5) //5 = TransferState.SimultaneousRequests
         ObservedRequests.expectRequest
       expectNoMsg()
     }

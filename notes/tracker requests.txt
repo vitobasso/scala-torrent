@@ -1,0 +1,39 @@
+#by us
+
+http://bt2.archive.org:6969/announce
+?info_hash=P%8Be%1E%C9%B4%F4hC%C6%A2%C0%7E+%EFM%24t%A1f
+&peer_id=-SC0001-584882788595
+&port=6881
+&uploaded=0
+&downloaded=0
+&left=524495014
+&event=started
+&numwant=50
+&compact=1
+&no_peer_id=1
+
+    #fails (wrong info hash)
+    d14:failure reason63:Requested download is not authorized for use with this tracker.e
+
+
+#by utorrent
+
+http://bt2.archive.org:6969/announce
+?info_hash=%8C%DA%82%9C%87%92%CA%0C%12B%0B%8F%C8%B2%B629%1A%CA%01
+&peer_id=-UM1870-%02%A4%B5%96%8F%60Y%EF%14%23%0C9
+&port=43611
+&uploaded=0
+&downloaded=0
+&left=524495014
+&corrupt=0
+&key=39A33E34
+&event=started
+&numwant=200
+&compact=1
+&no_peer_id=1
+&ipv6=fe80%3A%3A8b7%3A9d83%3A549e%3A2159
+
+    #succeeds
+    d8:completei0e10:downloadedi60e10:incompletei1e8:intervali1935e12:min intervali967e5:peers6:VX
+    (歧e
+

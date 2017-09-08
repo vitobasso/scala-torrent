@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.terminal
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import com.dominikgruber.scalatorrent.transfer.TransferStatus.ProgressReport
+import com.dominikgruber.scalatorrent.transfer.TransferState.ProgressReport
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

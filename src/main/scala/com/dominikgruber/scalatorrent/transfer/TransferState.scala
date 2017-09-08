@@ -6,13 +6,13 @@ import com.dominikgruber.scalatorrent.actor.Torrent.BlockSize
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Request
 import com.dominikgruber.scalatorrent.transfer.PickRandom._
-import com.dominikgruber.scalatorrent.transfer.TransferStatus.{ProgressReport, Stored, _}
+import com.dominikgruber.scalatorrent.transfer.TransferState.{ProgressReport, Stored, _}
 
 import scala.collection.{BitSet, mutable}
 import scala.concurrent.duration._
 import scala.util.Random
 
-case object TransferStatus {
+case object TransferState {
   val SimultaneousRequests: Int = 5
   val RequestTTL: Duration = 10.seconds
 
@@ -38,7 +38,7 @@ case object TransferStatus {
   * Picks a random missing block to be downloaded next.
   *   - prefers completing a piece in progress over starting a new one
   */
-case class TransferStatus(metaInfo: MetaInfo) {
+case class TransferState(metaInfo: MetaInfo) {
 
   val totalPieces: Int = metaInfo.fileInfo.numPieces
   val blocksPerPiece: Int = metaInfo.fileInfo.pieceLength / BlockSize
@@ -50,6 +50,10 @@ case class TransferStatus(metaInfo: MetaInfo) {
 
   private val pendingRequests = mutable.Map.empty[Request, Long]
 
+  /**
+    * Add a received block to the transfer state.
+    * @return bytes for a whole piece, if it's just been completed with the new block
+    */
   def addBlock(piece: Int, block: Int, data: Bytes): Option[Bytes] = {
     removePending(piece, block)
     pieces(piece).received(block, data) match {
@@ -63,18 +67,12 @@ case class TransferStatus(metaInfo: MetaInfo) {
   }
 
   /**
-    * Mark as completed and return the bytes, if in progress
+    * Because we know this piece has been stored before
     */
   def markPieceCompleted(piece: Int): Unit = {
     removePending(piece)
     pieces(piece) = Stored
   }
-
-  private def removePending(piece: Int): Unit =
-    pendingRequests.retain { case (req, _) => req.index != piece }
-
-  private def removePending(piece: Int, block: Int): Unit =
-    pendingRequests.retain { case (req, _) => req.index != piece || req.begin/BlockSize != block}
 
   /**
     * @param available in the remote peer
@@ -95,6 +93,12 @@ case class TransferStatus(metaInfo: MetaInfo) {
         whenHasElements(request)
       }
   }
+
+  private def removePending(piece: Int): Unit =
+    pendingRequests.retain { case (req, _) => req.index != piece }
+
+  private def removePending(piece: Int, block: Int): Unit =
+    pendingRequests.retain { case (req, _) => req.index != piece || req.begin/BlockSize != block}
 
   /**
     * How many requests we can still add to the pending ones
