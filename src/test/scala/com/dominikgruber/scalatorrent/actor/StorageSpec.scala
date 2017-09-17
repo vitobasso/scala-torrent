@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.actor.Storage._
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
+import com.dominikgruber.scalatorrent.util.ByteUtil.bytes
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet
@@ -174,10 +175,6 @@ class StorageSpec extends ActorSpec {
   def wait[M: ClassTag](storage: ActorRef) = {
     storage ! StatusPlease
     expectMsgType[M]
-  }
-
-  def bytes(str: String): Array[Byte] = {
-    str.split(" ").map(Integer.parseInt(_, 16).toByte)
   }
 
 }

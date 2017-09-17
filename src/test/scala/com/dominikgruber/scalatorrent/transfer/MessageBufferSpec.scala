@@ -3,6 +3,7 @@ package com.dominikgruber.scalatorrent.transfer
 import akka.util.ByteString
 import com.dominikgruber.scalatorrent.peerwireprotocol._
 import com.dominikgruber.scalatorrent.transfer.MessageBuffer._
+import com.dominikgruber.scalatorrent.util.ByteUtil.bytes
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
 class MessageBufferSpec extends UnitSpec {
@@ -46,7 +47,7 @@ class MessageBufferSpec extends UnitSpec {
     val part1 = bytes("00 00 00 15 07 00 00 00 00 00 00 00 00 01 02 03 04")
     val part2 = bytes("05 06 07 08 09 0A 0B 0C")
     val buffer = new MessageBuffer
-    def test(bytes: ByteString) = buffer.receiveBytes(MessageMode)(bytes)
+    def test(bytes: Array[Byte]) = buffer.receiveBytes(MessageMode)(ByteString(bytes))
 
     test(part1) shouldBe
       Result(Nil)
@@ -67,10 +68,10 @@ class MessageBufferSpec extends UnitSpec {
     result.messages.head shouldBe a[Handshake]
   }
 
-  implicit class TestTemplate(bytes: ByteString) {
+  implicit class TestTemplate(bytes: Array[Byte]) {
     def test[M <: MessageOrHandshake](mode: Mode[M]): Result[M] = {
       val buffer = new MessageBuffer
-      buffer.receiveBytes(mode)(bytes)
+      buffer.receiveBytes(mode)(ByteString(bytes))
     }
     def testMessage = test(MessageMode)
     def testHandshake = test(HandshakeMode)
@@ -81,9 +82,5 @@ class MessageBufferSpec extends UnitSpec {
       test(HandshakeMode) shouldBe expected
     }
   }
-
- def bytes(str: String) = ByteString {
-   str.split(" ").map(Integer.parseInt(_, 16).toByte)
- }
 
 }

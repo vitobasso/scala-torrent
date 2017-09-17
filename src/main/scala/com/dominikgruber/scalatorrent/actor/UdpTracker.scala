@@ -1,13 +1,12 @@
 package com.dominikgruber.scalatorrent.actor
 
 import java.net.InetSocketAddress
-import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.io.{IO, UdpConnected}
 import akka.util.ByteString
-import com.dominikgruber.scalatorrent.actor.Tracker.SendEventStarted
+import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.metainfo.{FileMetaInfo, SelfInfo}
 import com.dominikgruber.scalatorrent.tracker.UDPMessages.{AnnounceRequest, AnnounceResponse, ConnectRequest, ConnectResponse, TransactionId}
 import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithSuccess, UDPMessages}
@@ -33,6 +32,7 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
       val transactionId = TransactionId(Random.nextInt())
       val connReq = ConnectRequest(transactionId)
       val connReqBytes = ByteString(UDPMessages.encode(connReq))
+      log.debug(s"Sending $connReq")
       udpConn ! UdpConnected.Send(connReqBytes)
       context become expectingConnectResponse(sender, udpConn, transactionId, dl, ul)
 
@@ -49,20 +49,23 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
       val key = 123L //TODO
       UDPMessages.decode(data.toArray) match {
         case Success(c: ConnectResponse) =>
+          log.debug(s"Received $c")
           val announceReq = AnnounceRequest(
             c.conn, trans, torrentHash, peerId, dl, left, ul, UDPMessages.Started, key = key, port = port)
           val announceReqBytes = ByteString(UDPMessages.encode(announceReq))
+          log.debug(s"Sending $announceReq")
           udpConn ! UdpConnected.Send(announceReqBytes)
         case Success(a: AnnounceResponse) =>
+          log.debug(s"Received $a")
           //TODO validate transaction
-          val peers: List[Peer] = a.peers.map(p => Peer(None, ipAsString(p.ip), p.tcpPort)).toList
+          val peers: List[Peer] = a.peers.map(p => Peer(None, p.ip, p.port)).toList
           requestor ! TrackerResponseWithSuccess(a.interval, None, None, a.seeders, a.leechers, peers, None)
         case Failure(t) =>
           log.error(t, "Request to tracker failed")
+          requestor ! TrackerConnectionFailed(t.getMessage)
       }
   }
 
-  def ipAsString(ip: Int): String = ByteBuffer.allocate(4).putInt(ip).array().mkString(".")
   val port: Int = ConfigFactory.load.getConfig("scala-torrent").getInt("port") //TODO
 
   def disconnecting: Receive = {

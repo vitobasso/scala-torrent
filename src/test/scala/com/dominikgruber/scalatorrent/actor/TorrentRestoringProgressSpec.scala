@@ -27,7 +27,7 @@ class TorrentRestoringProgressSpec extends ActorSpec {
 
   val torrent: ActorRef = {
     def createActor = new Torrent("", meta, coordinator.ref, 0) {
-      override val tracker: ActorRef = outer.tracker.ref
+      override val trackers: Seq[ActorRef] = Seq(outer.tracker.ref)
       override val storage: ActorRef = outer.storage.ref
     }
     system.actorOf(Props(createActor), "torrent")

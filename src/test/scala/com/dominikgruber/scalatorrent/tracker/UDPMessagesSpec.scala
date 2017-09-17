@@ -1,6 +1,7 @@
 package com.dominikgruber.scalatorrent.tracker
 
 import com.dominikgruber.scalatorrent.tracker.UDPMessages._
+import com.dominikgruber.scalatorrent.util.ByteUtil.bytes
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
 class UDPMessagesSpec extends UnitSpec {
@@ -47,12 +48,17 @@ class UDPMessagesSpec extends UnitSpec {
       "00 06 " +       //TCP port
       "00 00 00 07 " + //IP address
       "00 08"}         //TCP port
-    val peers = Seq(UDPMessages.PeerAddress(5, 6), UDPMessages.PeerAddress(7, 8))
+    val peers = Seq(PeerAddress("0.0.0.5", 6), PeerAddress("0.0.0.7", 8))
     Announce.decode(input) shouldBe AnnounceResponse(TransactionId(1), 2, 3, 4, peers)
   }
 
-  def bytes(str: String): Array[Byte] = {
-    str.split(" ").map(Integer.parseInt(_, 16).toByte)
+  it should "decode a port from an unsigned short" in {
+    val peer = UDPMessages.PeerAddress.decode(bytes("00 00 00 00 FF FF"))
+    peer.port shouldBe 65535
+  }
+  it should "decode an ip from 32 bits" in {
+    val peer = UDPMessages.PeerAddress.decode(bytes("FF FF FF FF 00 00"))
+    peer.ip shouldBe "255.255.255.255"
   }
 
 }

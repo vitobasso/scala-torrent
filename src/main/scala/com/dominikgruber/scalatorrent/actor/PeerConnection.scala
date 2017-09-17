@@ -9,8 +9,7 @@ import com.dominikgruber.scalatorrent.actor.ToByteString._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{Handshake, Message, MessageOrHandshake}
 import com.dominikgruber.scalatorrent.transfer.MessageBuffer
 import com.dominikgruber.scalatorrent.transfer.MessageBuffer.{HandshakeMode, MessageMode, Mode}
-
-import scala.collection.mutable.ArrayBuffer
+import com.dominikgruber.scalatorrent.util.ByteUtil.Hex
 
 object PeerConnection {
   case class SetListener(listener: ActorRef)
@@ -71,11 +70,4 @@ object ToByteString {
     ByteString(handshake.marshal.toArray)
   implicit def messageToBytes(message: Message): ByteString =
     ByteString(message.marshal.toArray)
-}
-
-object Hex {
-  def apply(buf: Array[Byte]): String = buf.map("%02X" format _).mkString(" ")
-  def apply(buf: Vector[Byte]): String = apply(buf.toArray)
-  def apply(buf: ArrayBuffer[Byte]): String = apply(buf.toArray)
-  def apply(buf: ByteString): String = apply(buf.toArray)
 }

@@ -1,5 +1,7 @@
 package com.dominikgruber.scalatorrent.actor
 
+import java.net.InetSocketAddress
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.actor.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.actor.PeerConnection.SetListener
@@ -31,7 +33,7 @@ object Torrent {
 class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   extends Actor with ActorLogging {
 
-  val tracker: ActorRef = createTrackerActor()
+  val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
   val storage: ActorRef = createStorageActor()
   val transferState = TransferState(meta)
 
@@ -45,7 +47,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     case Status(piecesWeHave) =>
       log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
       piecesWeHave foreach transferState.markPieceCompleted
-      tracker ! SendEventStarted(0, 0)
+      trackers.foreach { _ ! SendEventStarted(0, 0) }
       context become findingPeers
     case Complete =>
       //TODO seed
@@ -112,14 +114,26 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     context.actorOf(props, s"peer-sharing-${peer.address}")
   }
 
-  private def createTrackerActor(): ActorRef = {
-    val props = Props(classOf[Tracker], meta, selfPeerId, portIn)
-    context.actorOf(props, s"tracker-${meta.hash}")
+  private def createTrackerActor(peerUrl: String): Option[ActorRef] = {
+    val url = """(\w+)://(.*):(\d+)""".r
+    val props = peerUrl match {
+      case url("http", _, _) =>
+        Some(Props(classOf[Tracker], meta, selfPeerId, portIn)) //TODO rm selfPeerId param
+      case url("udp", host, port) =>
+        Some(Props(classOf[UdpTracker], meta.fileInfo, new InetSocketAddress(host, port.toInt)))
+      case _ => None
+    }
+    val escapedUrl = peerUrl.replaceAll("/", "_")
+    props.map{
+      context.actorOf(_, s"tracker-$escapedUrl-${meta.hash}")
+    }
   }
 
   private def createStorageActor(): ActorRef = {
     val props = Props(classOf[Storage], meta.fileInfo)
     context.actorOf(props, s"storage-${meta.hash}")
   }
+
+  private def trackerAddrs: Seq[String] = meta.announceList.map { _.flatten }.getOrElse(Seq(meta.announce))
 
 }

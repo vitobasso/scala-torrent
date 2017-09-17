@@ -45,7 +45,7 @@ object Peer {
         if (peer.contains("peer id")) Some(peer("peer id").asInstanceOf[String])
         else None,
       ip = peer("ip").asInstanceOf[String],
-      port = peer("port").asInstanceOf[Int]
+      port = peer("port").asInstanceOf[Long].toInt
     )
 
   def createList(peers: Any): List[Peer] = peers match {
