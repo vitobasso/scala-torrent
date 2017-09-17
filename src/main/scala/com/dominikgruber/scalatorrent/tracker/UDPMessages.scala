@@ -2,6 +2,9 @@ package com.dominikgruber.scalatorrent.tracker
 
 import java.nio.ByteBuffer
 
+import com.dominikgruber.scalatorrent.tracker
+import com.dominikgruber.scalatorrent.util.ByteUtil.bytes
+
 import scala.util.Try
 
 /**
@@ -36,12 +39,6 @@ object UDPMessages {
     * 20-byte
     */
   case class PeerId(value: Array[Byte])
-
-  /**
-    * @param ip 32-bit
-    * @param tcpPort 16-bit
-    */
-  case class PeerAddress(ip: Int, tcpPort: Int)
 
   trait AnnounceEvent{ val code: Int }
   case object None extends AnnounceEvent{ val code = 0 }
@@ -132,16 +129,28 @@ object UDPMessages {
 
   object PeerAddress {
     def decode(rep: Array[Byte]): PeerAddress = {
-      val host = rep.getInt(0)
-      val port = rep.getShort(4)
-      PeerAddress(host, port)
+      val host = ipAsString(rep.getInt(0))
+      val port = rep.getUnsignedShort(4)
+      tracker.PeerAddress(host, port)
     }
   }
 
-  implicit class BytesOps(bytes: Array[Byte]) {
-    def getShort(from: Int): Short = ByteBuffer.wrap(bytes.drop(from).take(2)).getShort
-    def getInt(from: Int): Int = ByteBuffer.wrap(bytes.drop(from).take(4)).getInt
-    def getLong(from: Int): Long = ByteBuffer.wrap(bytes.drop(from).take(8)).getLong
+  implicit class BytesOps(bytess: Array[Byte]) {
+    def getShort(from: Int): Short = ByteBuffer.wrap(bytess.drop(from).take(2)).getShort
+    def getInt(from: Int): Int = ByteBuffer.wrap(bytess.drop(from).take(4)).getInt
+    def getLong(from: Int): Long = ByteBuffer.wrap(bytess.drop(from).take(8)).getLong
+    def getUnsignedShort(from: Int): Int = {
+      val paddedBytes = bytes("00 00") ++ bytess.drop(from).take(2)
+      ByteBuffer.wrap(paddedBytes).getInt
+    }
+    def getUnsignedByte(from: Int): Short = {
+      val paddedBytes = bytes("00") ++ bytess.drop(from).take(1)
+      ByteBuffer.wrap(paddedBytes).getShort
+    }
   }
+  def ipAsString(ip: Int): String =
+    ByteBuffer.allocate(4).putInt(ip).array()
+      .map{ Array(_).getUnsignedByte(0) }
+      .mkString(".")
 
 }

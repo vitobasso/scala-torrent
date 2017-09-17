@@ -19,8 +19,8 @@ class MetaInfoSpec extends UnitSpec {
       None,
       None
     )
-    inCmp should be (out)
-    out.bencodedString.get should be (sourceString)
+    inCmp shouldBe out
+    out.bencodedString shouldBe Right(sourceString)
   }
 
   it should "parse the Killers_from_space_archive demo torrent correctly" in {

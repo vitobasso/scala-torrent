@@ -53,5 +53,5 @@ object BencodeParser extends RegexParsers {
 
   def bencodeElem = string | integer | list | dictionary
 
-  def apply(input: String) = parseAll(bencodeElem, input)
+  def apply(input: String): BencodeParser.ParseResult[Any] = parseAll(bencodeElem, input)
 }

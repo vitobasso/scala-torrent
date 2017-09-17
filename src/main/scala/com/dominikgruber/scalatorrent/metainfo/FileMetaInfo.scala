@@ -50,7 +50,7 @@ sealed trait FileMetaInfo
   /**
    * Bencoded string conforming to the .torrent file standard
    */
-  def bencodedString: Option[String] =
+  def bencodedString: Either[String, String] =
     BencodeEncoder(toMap)
 
   /**

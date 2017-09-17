@@ -2,7 +2,7 @@ package com.dominikgruber.scalatorrent.peerwireprotocol
 
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
-import com.dominikgruber.scalatorrent.actor.Hex
+import com.dominikgruber.scalatorrent.util.ByteUtil.Hex
 
 /**
  * The handshake is a required message and must be the first message transmitted

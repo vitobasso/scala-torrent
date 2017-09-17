@@ -30,6 +30,7 @@ case class MetaInfo
   /**
    * This is an extention to the official specification, offering
    * backwards-compatibility. (list of lists of strings).
+    * http://bittorrent.org/beps/bep_0012.html
    */
   announceList: Option[List[List[String]]],
 
@@ -75,7 +76,7 @@ case class MetaInfo
   /**
    * Bencoded string conforming to the .torrent file standard
    */
-  def bencodedString: Option[String] =
+  def bencodedString: Either[String, String] =
     BencodeEncoder(toMap)
 
   def hash: String = fileInfo.infoHashString
@@ -104,8 +105,10 @@ object MetaInfo {
    * together from the parsed input since the original input might contain
    * undocumented keys that are ignored by the parser.
    */
-  def getInfoValueFromBencodedString(bencode: String): String =
-    bencode.substring(bencode.lastIndexOf("4:info") + 6, bencode.length - 1)
+  def getInfoValueFromBencodedString(bencode: String): String = {
+    val infoDict = bencode.substring(bencode.lastIndexOf("4:info") + 6, bencode.length - 1)
+    if(infoDict.contains("8:url-list")) infoDict.substring(0, infoDict.lastIndexOf("8:url-list")) else infoDict //TODO better solution
+  }
 
   def calculateInfoHashFromBencodedString(bencode: String): Vector[Byte] = {
     val infoValue = getInfoValueFromBencodedString(bencode)

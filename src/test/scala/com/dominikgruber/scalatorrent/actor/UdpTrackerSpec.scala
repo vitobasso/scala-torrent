@@ -8,6 +8,7 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.dominikgruber.scalatorrent.actor.Tracker.SendEventStarted
 import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithSuccess}
+import com.dominikgruber.scalatorrent.util.ByteUtil.bytes
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 class UdpTrackerSpec extends ActorSpec {
@@ -78,11 +79,6 @@ class UdpTrackerSpec extends ActorSpec {
       }
     }
 
-
-  }
-
-  def bytes(str: String): Array[Byte] = {
-    str.split(" ").map(Integer.parseInt(_, 16).toByte)
   }
 
 }
