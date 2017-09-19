@@ -5,7 +5,6 @@ import java.lang.System.currentTimeMillis
 import com.dominikgruber.scalatorrent.actor.Torrent.BlockSize
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.Request
-import com.dominikgruber.scalatorrent.transfer.PickRandom._
 import com.dominikgruber.scalatorrent.transfer.TransferState.{ProgressReport, Stored, _}
 
 import scala.collection.{BitSet, mutable}
@@ -240,6 +239,14 @@ case class TransferState(metaInfo: MetaInfo) {
     val progressPerPiece = pieces.map(_.progress)
     val overall = progressPerPiece.sum / totalPieces
     ProgressReport(overall, progressPerPiece)
+  }
+
+  implicit class SeqOps[T](seq: Seq[T]) {
+    def randomElement: Option[T] = randomIndex.map(seq)
+    def randomIndex: Option[Int] = seq.size match {
+      case 0 => None
+      case size => Some(Random.nextInt(size))
+    }
   }
 
 }
