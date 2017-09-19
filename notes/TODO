@@ -26,7 +26,6 @@
     prevent "test-file" creation during tests
     replace Vector[Byte], others[Byte] by Array[Byte] ?
     extract BlockSize from torrent actor, to simplify tests
-    remove unused: PickRandom.randomIndexOf & test
     centralized init & passing of config, random ids
     hash calculation
         (share the solution)
