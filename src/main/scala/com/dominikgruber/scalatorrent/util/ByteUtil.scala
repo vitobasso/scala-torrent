@@ -13,8 +13,10 @@ object ByteUtil {
     def apply(buf: ByteString): String = apply(buf.toArray)
   }
 
-  def bytes(str: String): Array[Byte] = {
+  def bytes(str: String): Array[Byte] =
     str.split(" ").map(Integer.parseInt(_, 16).toByte)
-  }
+
+  def unsignedByte(b: Byte): Short = (0xff & b).toShort
+  def unsignedShort(s: Short): Int = 0xffff & s
 
 }

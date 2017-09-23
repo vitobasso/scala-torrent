@@ -3,8 +3,6 @@
     accept:
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
         tracker
-            udp: sintel.torrent
-            1st tracker fails but another works: CC_1916_07_10_TheVagabond_archive.torrent
             multifile hash: CC_1916_07_10_TheVagabond_archive_1tracker.torrent
                 failing because we send the wrong hash
         magnet, mainline DHT
