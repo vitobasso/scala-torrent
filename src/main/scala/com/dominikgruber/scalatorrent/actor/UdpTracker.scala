@@ -8,8 +8,9 @@ import akka.io.{IO, UdpConnected}
 import akka.util.ByteString
 import com.dominikgruber.scalatorrent.actor.Tracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.metainfo.{FileMetaInfo, SelfInfo}
-import com.dominikgruber.scalatorrent.tracker.UDPMessages.{AnnounceRequest, AnnounceResponse, ConnectRequest, ConnectResponse, TransactionId}
-import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithSuccess, UDPMessages}
+import com.dominikgruber.scalatorrent.tracker.udp.UdpEncoding._
+import com.dominikgruber.scalatorrent.tracker.udp._
+import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithSuccess}
 import com.typesafe.config.ConfigFactory
 
 import scala.util.{Failure, Random, Success}
@@ -31,7 +32,7 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
     case SendEventStarted(dl, ul) => // from Torrent
       val transactionId = TransactionId(Random.nextInt())
       val connReq = ConnectRequest(transactionId)
-      val connReqBytes = ByteString(UDPMessages.encode(connReq))
+      val connReqBytes = ByteString(encode(connReq))
       log.debug(s"Sending $connReq")
       udpConn ! UdpConnected.Send(connReqBytes)
       context become expectingConnectResponse(sender, udpConn, transactionId, dl, ul)
@@ -43,16 +44,16 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
 
   def expectingConnectResponse(requestor: ActorRef, udpConn: ActorRef, trans: TransactionId, dl: Long, ul: Long): Receive = {
     case UdpConnected.Received(data) =>
-      val torrentHash = UDPMessages.InfoHash(meta.infoHash.toArray)
-      val peerId = UDPMessages.PeerId(SelfInfo.selfPeerId.getBytes(ISO_8859_1))
+      val torrentHash = InfoHash.validate(meta.infoHash.toArray)
+      val peerId = PeerId.validate(SelfInfo.selfPeerId.getBytes(ISO_8859_1))
       val left: Long = meta.totalBytes //TODO get progress
       val key = 123L //TODO
-      UDPMessages.decode(data.toArray) match {
+      decode(data.toArray) match {
         case Success(c: ConnectResponse) =>
           log.debug(s"Received $c")
           val announceReq = AnnounceRequest(
-            c.conn, trans, torrentHash, peerId, dl, left, ul, UDPMessages.Started, key = key, port = port)
-          val announceReqBytes = ByteString(UDPMessages.encode(announceReq))
+            c.conn, trans, torrentHash, peerId, dl, left, ul, AnnounceEvent.Started, key = key, port = port)
+          val announceReqBytes = ByteString(encode(announceReq))
           log.debug(s"Sending $announceReq")
           udpConn ! UdpConnected.Send(announceReqBytes)
         case Success(a: AnnounceResponse) =>
