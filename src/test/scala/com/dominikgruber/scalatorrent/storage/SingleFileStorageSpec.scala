@@ -1,30 +1,33 @@
-package com.dominikgruber.scalatorrent
-
-import java.nio.charset.StandardCharsets._
-import java.nio.file.{Files, Path, Paths}
+package com.dominikgruber.scalatorrent.storage
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
-import com.dominikgruber.scalatorrent.Storage._
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
+import com.dominikgruber.scalatorrent.storage.Storage._
 import com.dominikgruber.scalatorrent.util.ByteUtil.bytes
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
 
 import scala.collection.BitSet
+import scala.concurrent.duration._
 import scala.reflect.ClassTag
+import scalax.file.Path
 
-class StorageSpec extends ActorSpec {
+class SingleFileStorageSpec extends ActorSpec {
   outer =>
 
-  private val fileName = "storage-test-file"
-  val path: Path = Paths.get(fileName)
-  val meta: FileMetaInfo = Mocks.fileMetaInfo(7, 2, fileName)
+  val testFileName = "storage-test-file"
+  val meta: FileMetaInfo = Mocks.fileMetaInfo(7, 2, testFileName)
+  val hash: String = meta.infoHashString
+  val parentDir = Path(hash)
+  val dataFile = parentDir / testFileName
+  val statusFile = parentDir / s"$hash.status"
   val torrent = TestProbe("torrent")
+  val patience = 30 seconds
 
   "a Storage actor" must {
 
     "initialize the file with zeroes" in {
-      Files.exists(path) shouldBe false
+      assumeClean
       fixture { storage =>
         storage ! Load(0)
         expectLoaded(0, "00 00")
@@ -34,14 +37,14 @@ class StorageSpec extends ActorSpec {
         expectLoaded(2, "00 00")
         storage ! Load(3)
         expectLoaded(3, "00")
-        Files.exists(path) shouldBe true
+        dataFile.exists shouldBe true
       }
     }
 
     "leave an existing file untouched" in {
-      Files.exists(path) shouldBe false
-      Files.write(path, "1234567".getBytes(ISO_8859_1))
-      Files.exists(path) shouldBe true
+      assumeClean
+      dataFile.write("1234567")
+      assume(dataFile.exists)
       fixture { storage =>
         storage ! Load(0)
         expectLoaded(0, "31 32")
@@ -55,7 +58,7 @@ class StorageSpec extends ActorSpec {
     }
 
     "store pieces in non-sequential order" in {
-      Files.exists(path) shouldBe false
+      assumeClean
       fixture { storage =>
         storage ! Store(2, bytes("33 34"))
         storage ! Store(0, bytes("31 32"))
@@ -72,7 +75,7 @@ class StorageSpec extends ActorSpec {
     }
 
     "store a piece in the last position" in {
-      Files.exists(path) shouldBe false
+      assumeClean
       fixture { storage =>
         storage ! Store(3, bytes("31"))
 
@@ -88,7 +91,7 @@ class StorageSpec extends ActorSpec {
     }
 
     "overwrite a piece" in {
-      Files.exists(path) shouldBe false
+      assumeClean
       fixture { storage =>
         storage ! Store(2, bytes("33 34"))
         storage ! Store(2, bytes("31 32"))
@@ -105,50 +108,55 @@ class StorageSpec extends ActorSpec {
     }
 
     "return the status" in {
-      Files.exists(path) shouldBe false
+      assumeClean
       fixture { storage =>
         storage ! StatusPlease
-        expectMsg(Status(BitSet.empty))
+        expectMsg(patience, Status(BitSet.empty))
 
         storage ! Store(1, bytes("31 32"))
         storage ! Store(2, bytes("33 34"))
 
         storage ! StatusPlease
-        expectMsg(Status(BitSet(1, 2)))
+        expectMsg(patience, Status(BitSet(1, 2)))
 
         storage ! Store(3, bytes("35"))
 
         storage ! StatusPlease
-        expectMsg(Status(BitSet(1, 2, 3)))
+        expectMsg(patience, Status(BitSet(1, 2, 3)))
       }
     }
 
     "remove metadata when complete" in {
-      Files.exists(path) shouldBe false
+      assumeClean
       fixture { storage =>
         wait[Status](storage) //wait for file initialization
-        path.toFile.length should be > 7L //status metadata added to file
+        statusFile.size shouldBe a[Some[Long]] //status metadata added to file
 
         storage ! Store(0, bytes("31 32"))
         storage ! Store(1, bytes("33 34"))
         storage ! Store(2, bytes("35 36"))
         wait[Status](storage)
-        path.toFile.length should be > 7L //not removed yet
+        statusFile.size shouldBe a[Some[Long]] //not removed yet
 
         storage ! Store(3, bytes("37"))
         wait[Complete.type](storage)
-        path.toFile.length shouldBe 7L //removed when complete
+        statusFile.size
+        statusFile.size shouldBe None //removed when complete
 
         storage ! Store(3, bytes("37"))
         wait[Complete.type](storage)
-        path.toFile.length shouldBe 7L //not added again
+        statusFile.size shouldBe None //not added again
       }
     }
 
   }
 
+  def assumeClean: Unit = {
+    assume(!parentDir.exists)
+  }
+
   def expectLoaded(index: Int, byteStr: String): Unit =
-    expectMsgPF() {
+    expectMsgPF(patience) {
       case Loaded(`index`, data) =>
         data should contain theSameElementsInOrderAs bytes(byteStr)
     }
@@ -156,7 +164,10 @@ class StorageSpec extends ActorSpec {
   def fixture(test: ActorRef => Unit): Unit = {
     val storage = {
       def createActor = new Storage(meta) {
-        override val pageSize: Int = 5 // > pieceSize but < totalSize
+        override val files: FileManager = {
+          val maxChunk: Int = 5 // > pieceSize but < totalSize
+          FileManager(meta, maxChunk)
+        }
       }
       system.actorOf(Props(createActor), "storage")
     }
@@ -164,7 +175,7 @@ class StorageSpec extends ActorSpec {
       test(storage)
     } finally {
       syncStop(storage)
-      Files.delete(path)
+      parentDir.deleteRecursively()
     }
   }
 
@@ -174,7 +185,7 @@ class StorageSpec extends ActorSpec {
     */
   def wait[M: ClassTag](storage: ActorRef) = {
     storage ! StatusPlease
-    expectMsgType[M]
+    expectMsgType[M](patience)
   }
 
 }

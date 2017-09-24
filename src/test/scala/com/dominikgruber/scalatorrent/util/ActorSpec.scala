@@ -2,8 +2,10 @@ package com.dominikgruber.scalatorrent.util
 
 import akka.actor.{ActorRef, ActorSystem, Terminated}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+
+import scala.concurrent.duration._
 
 
 abstract class ActorSpec extends TestKit(ActorSystem())
@@ -17,7 +19,7 @@ abstract class ActorSpec extends TestKit(ActorSystem())
   def syncStop(actor: ActorRef) {
     watch(actor)
     system.stop(actor)
-    expectMsgPF(){
+    expectMsgPF(10 seconds){
       case Terminated(`actor`) =>
     }
     unwatch(actor)
