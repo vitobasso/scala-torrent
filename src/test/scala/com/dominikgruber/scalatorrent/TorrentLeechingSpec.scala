@@ -3,11 +3,11 @@ package com.dominikgruber.scalatorrent
 import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
-import com.dominikgruber.scalatorrent.Storage.Status
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.message._
+import com.dominikgruber.scalatorrent.storage.Storage.Status
 import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.SendEventStarted
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
@@ -30,8 +30,8 @@ class TorrentLeechingSpec extends ActorSpec {
 
     val torrent: ActorRef = {
       def createActor = new Torrent("", meta, coordinator.ref, 0) {
-        override val trackers: Seq[ActorRef] = Seq(outer.tracker.ref)
-        override val storage: ActorRef = outer.storage.ref
+        override lazy val trackers: Seq[ActorRef] = Seq(outer.tracker.ref)
+        override lazy val storage: ActorRef = outer.storage.ref
       }
       system.actorOf(Props(createActor), "torrent")
     }

@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.SelfInfo._
-import com.dominikgruber.scalatorrent.Storage._
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -13,12 +12,15 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToReq
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Piece}
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.peerwireprotocol.{PeerSharing, TransferState}
+import com.dominikgruber.scalatorrent.storage.Storage
+import com.dominikgruber.scalatorrent.storage.Storage._
 import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker._
 import com.dominikgruber.scalatorrent.tracker.http._
 import com.dominikgruber.scalatorrent.tracker.udp.UdpTracker
 
 import scala.collection.BitSet
+import scala.util.matching.Regex
 
 object Torrent {
   /**
@@ -35,8 +37,9 @@ object Torrent {
 class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   extends Actor with ActorLogging {
 
-  val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
-  val storage: ActorRef = createStorageActor()
+  //lazy prevents unwanted init before overwrite from test
+  lazy val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
+  lazy val storage: ActorRef = createStorageActor()
   val transferState = TransferState(meta)
 
   override def preStart(): Unit = {
@@ -117,7 +120,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   }
 
   private def createTrackerActor(peerUrl: String): Option[ActorRef] = {
-    val url = """(\w+)://(.*):(\d+)""".r
+    val url: Regex = """(\w+)://(.*):(\d+)""".r
     val props = peerUrl match {
       case url("http", _, _) =>
         Some(Props(classOf[HttpTracker], meta, selfPeerId, portIn)) //TODO rm selfPeerId param
@@ -136,6 +139,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     context.actorOf(props, s"storage-${meta.hash}")
   }
 
-  private def trackerAddrs: Seq[String] = meta.announceList.map { _.flatten }.getOrElse(Seq(meta.announce))
+  private def trackerAddrs: Seq[String] =
+    meta.announceList.map { _.flatten }.getOrElse(Seq(meta.announce))
 
 }
