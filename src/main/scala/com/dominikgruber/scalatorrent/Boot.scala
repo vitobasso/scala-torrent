@@ -3,9 +3,8 @@ package com.dominikgruber.scalatorrent
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.dominikgruber.scalatorrent.actor.Coordinator
-import com.dominikgruber.scalatorrent.actor.Coordinator._
-import com.dominikgruber.scalatorrent.terminal.ProgressReporting
+import com.dominikgruber.scalatorrent.Coordinator._
+import com.dominikgruber.scalatorrent.cli.ProgressReporting
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.ExecutionContext.Implicits.global

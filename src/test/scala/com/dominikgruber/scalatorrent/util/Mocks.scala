@@ -1,8 +1,9 @@
 package com.dominikgruber.scalatorrent.util
 
-import com.dominikgruber.scalatorrent.actor.Torrent.BlockSize
+import com.dominikgruber.scalatorrent.Torrent.BlockSize
 import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, SingleFileMetaInfo}
-import com.dominikgruber.scalatorrent.tracker.{Peer, TrackerResponseWithSuccess}
+import com.dominikgruber.scalatorrent.tracker.Peer
+import com.dominikgruber.scalatorrent.tracker.http.TrackerResponseWithSuccess
 
 object Mocks {
 
