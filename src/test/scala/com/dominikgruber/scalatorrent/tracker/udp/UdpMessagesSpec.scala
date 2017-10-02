@@ -79,6 +79,7 @@ class UdpMessagesSpec extends UnitSpec {
     val peer = fromByteArray(peerBytes)(UdpEncoding.readsPeerAddr)
     peer.port shouldBe 65535
   }
+
   it should "decode an ip from 32 bits" in {
     val peerBytes = bytes("FF FF FF FF 00 00")
     val peer = fromByteArray(peerBytes)(UdpEncoding.readsPeerAddr)

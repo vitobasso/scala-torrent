@@ -1,11 +1,8 @@
 
 - feature
     accept:
+        ~ magnet, mainline DHT
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
-        tracker
-            multifile hash: CC_1916_07_10_TheVagabond_archive_1tracker.torrent
-                failing because we send the wrong hash
-        magnet, mainline DHT
     send Bitfield, Have & Piece
     repeat request to tracker
 

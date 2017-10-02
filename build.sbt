@@ -17,6 +17,7 @@ libraryDependencies ++= {
     "com.github.scala-incubator.io" %% "scala-io-file" % "0.4.3-1",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
     "org.scala-sbt" %% "sbinary" % "0.4.4",
+    "org.typelevel" %% "cats-core" % "0.9.0",
     "com.chuusai" %% "shapeless" % "2.3.2",
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
     "org.scalatest" %% "scalatest" % "3.0.4" % Test,
