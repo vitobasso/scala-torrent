@@ -25,6 +25,8 @@ object Boot extends App {
 
   val log: Logger = LoggerFactory.getLogger(Boot.getClass)
 
+  sys.addShutdownHook{ quit() }
+
   // Start actor system and coordinator actor
   implicit val system = ActorSystem("scala-torrent")
   val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator]), "coordinator")

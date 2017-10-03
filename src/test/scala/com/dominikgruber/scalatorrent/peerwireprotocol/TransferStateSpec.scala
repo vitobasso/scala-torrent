@@ -13,15 +13,15 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
 
   it should "begin with all blocks missing" in {
     val state = TransferState(meta)
-    state.getPieces shouldBe Seq(Missing, Missing, Missing)
+    state.getPieces shouldBe Seq(Empty, Empty, Empty)
   }
 
   it should "mark a block" in {
     val state = TransferState(meta)
     state.addBlock(1, 1, data)
 
-    val Seq(Missing, InProgress(blocks), Missing) = state.getPieces
-    val Seq(MissingBlock, Received(observedData)) = blocks
+    val Seq(Empty, InProgress(blocks), Empty) = state.getPieces
+    val Seq(Missing, Received(observedData)) = blocks
     observedData should contain theSameElementsInOrderAs data
   }
 
@@ -29,7 +29,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
     val state = TransferState(meta)
     state.markPieceCompleted(2)
 
-    state.getPieces shouldBe Seq(Missing, Missing, Stored)
+    state.getPieces shouldBe Seq(Empty, Empty, Stored)
   }
 
   it should "mark a piece when marking the last block" in {
@@ -37,7 +37,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
     state.addBlock(1, 0, data)
     state.addBlock(1, 1, data)
 
-    state.getPieces shouldBe Seq(Missing, Stored, Missing)
+    state.getPieces shouldBe Seq(Empty, Stored, Empty)
   }
 
   it should "ignore a redundant mark" in {
@@ -45,13 +45,13 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
 
     state.addBlock(1, 0, data)
     state.addBlock(1, 0, data)
-    val Seq(Missing, InProgress(blocks), Missing) = state.getPieces
-    val Seq(Received(observedData), MissingBlock) = blocks
+    val Seq(Empty, InProgress(blocks), Empty) = state.getPieces
+    val Seq(Received(observedData), Missing) = blocks
     observedData should contain theSameElementsInOrderAs data
 
     state.addBlock(1, 1, data)
     state.addBlock(1, 0, data)
-    state.getPieces shouldBe Seq(Missing, Stored, Missing)
+    state.getPieces shouldBe Seq(Empty, Stored, Empty)
   }
 
   it should "only pick missing parts" in {

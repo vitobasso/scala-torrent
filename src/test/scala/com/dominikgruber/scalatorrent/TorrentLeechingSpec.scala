@@ -1,7 +1,5 @@
 package com.dominikgruber.scalatorrent
 
-import akka.actor.{ActorRef, Props}
-import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -10,31 +8,19 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.message._
 import com.dominikgruber.scalatorrent.storage.Storage.Status
 import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.SendEventStarted
-import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
+import com.dominikgruber.scalatorrent.util.Mocks
 
 import scala.collection.BitSet
 
-class TorrentLeechingSpec extends ActorSpec {
-  outer =>
+class TorrentLeechingSpec extends TorrentSpec {
 
-  val meta: MetaInfo = Mocks.metaInfo(
+  override val meta: MetaInfo = Mocks.metaInfo(
     totalLength = 8 * BlockSize,
     pieceLength = 2 * BlockSize)
   val allAvailable = BitSet(0, 1, 2, 3)
-  val tracker = TestProbe("tracker")
-  val storage = TestProbe("storage")
-  val coordinator = TestProbe("coordinator")
   val totalBlocks: Long = meta.fileInfo.totalBytes/BlockSize
 
   "a Torrent actor, when downloading" must {
-
-    val torrent: ActorRef = {
-      def createActor = new Torrent("", meta, coordinator.ref, 0) {
-        override lazy val trackers: Seq[ActorRef] = Seq(outer.tracker.ref)
-        override lazy val storage: ActorRef = outer.storage.ref
-      }
-      system.actorOf(Props(createActor), "torrent")
-    }
 
     "say hi to tracker" in {
       torrent ! Status(BitSet.empty)

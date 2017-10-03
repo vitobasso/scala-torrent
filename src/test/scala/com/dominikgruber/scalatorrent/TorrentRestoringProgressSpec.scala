@@ -1,7 +1,5 @@
 package com.dominikgruber.scalatorrent
 
-import akka.actor.{ActorRef, Props}
-import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
@@ -10,33 +8,21 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToReq
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState.ProgressReport
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.Piece
 import com.dominikgruber.scalatorrent.storage.Storage._
-import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
+import com.dominikgruber.scalatorrent.util.Mocks
 
 import scala.collection.BitSet
 
-class TorrentRestoringProgressSpec extends ActorSpec {
-  outer =>
+class TorrentRestoringProgressSpec extends TorrentSpec {
 
-  val meta: MetaInfo = Mocks.metaInfo(
+  override val meta: MetaInfo = Mocks.metaInfo(
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
-  val tracker = TestProbe("tracker")
-  val storage = TestProbe("storage")
-  val coordinator = TestProbe("coordinator")
-  lazy val allAvailable = BitSet(0, 1, 2)
-
-  val torrent: ActorRef = {
-    def createActor = new Torrent("", meta, coordinator.ref, 0) {
-      override lazy val trackers: Seq[ActorRef] = Seq(outer.tracker.ref)
-      override lazy val storage: ActorRef = outer.storage.ref
-    }
-    system.actorOf(Props(createActor), "torrent")
-  }
+  val allAvailable = BitSet(0, 1, 2)
 
   "a Torrent actor, when restoring progress from a file" must {
 
     "report some progress" in {
-      //after creation
+      torrent //trigger actor creation (this is a lazy val)
       storage.expectMsg(StatusPlease)
       torrent ! Status(BitSet(1, 2))
 

@@ -7,7 +7,7 @@ import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.SelfInfo._
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
-import com.dominikgruber.scalatorrent.metainfo.MetaInfo
+import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, PieceChecksum}
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToRequest, SendToPeer}
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Piece}
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.SetListener
@@ -41,6 +41,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   lazy val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
   lazy val storage: ActorRef = createStorageActor()
   val transferState = TransferState(meta)
+  val checksum = PieceChecksum(meta)
 
   override def preStart(): Unit = {
     storage ! StatusPlease
@@ -78,18 +79,23 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       peerConn ! SetListener(peerSharing)
 
     case AreWeInterested(piecesAvailable) => // from PeerSharing
-      if(transferState.isAnyPieceNew(piecesAvailable))
+      if(transferState.isAnyPieceNewIn(piecesAvailable))
         sender ! SendToPeer(Interested())
 
     case NextRequest(piecesAvailable) => // from PeerSharing
-      requestNewBlocks(piecesAvailable, sender) //TODO begin with 5 requests
+      requestNewBlocks(piecesAvailable, sender)
 
     case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
       transferState
         .addBlock(piece.index, piece.begin/BlockSize, piece.block.toArray)
         .foreach { completePiece =>
+          if(checksum(piece.index, completePiece))
             storage ! Store(piece.index, completePiece)
+          else{
+            log.warning(s"Checksum failed for piece ${piece.index}.")
+            transferState.resetPiece(piece.index)
+          }
         }
       requestNewBlocks(piecesAvailable, sender)
 
