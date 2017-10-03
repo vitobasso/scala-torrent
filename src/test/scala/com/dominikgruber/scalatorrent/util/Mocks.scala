@@ -1,11 +1,14 @@
 package com.dominikgruber.scalatorrent.util
 
 import com.dominikgruber.scalatorrent.Torrent.BlockSize
-import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, SingleFileMetaInfo}
+import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, PieceChecksum, SingleFileMetaInfo}
 import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.tracker.http.TrackerResponseWithSuccess
+import org.mockito.Matchers._
+import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
 
-object Mocks {
+object Mocks extends MockitoSugar {
 
   def fileMetaInfo(totalLength: Int = 0, pieceLength: Int = 1, file: String = "test-file"): SingleFileMetaInfo =
     SingleFileMetaInfo(infoHash, pieceLength, "", None, file, totalLength, None)
@@ -23,5 +26,11 @@ object Mocks {
   }
 
   val peer = Peer(None, "peer-ip", 0)
+
+  val checksum = {
+    val checksum = mock[PieceChecksum]
+    when(checksum.apply(anyInt(), any[Array[Byte]])).thenReturn(true)
+    checksum
+  }
 
 }

@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
-import akka.io.Tcp.{PeerClosed, Received, Write}
+import akka.io.Tcp.{Abort, PeerClosed, Received, Write}
 import akka.util.ByteString
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Handshake, Message, MessageOrHandshake}
@@ -55,6 +55,10 @@ class PeerConnection(tcp: ActorRef)
     case PeerClosed => // from Tcp
       log.warning("Peer closed")
 
+  }
+
+  override def postStop(): Unit = {
+    tcp ! Abort
   }
 
 }

@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, PoisonPill, Props}
 import akka.io.Tcp
-import akka.io.Tcp.{Connect, Connected, Register, Write}
+import akka.io.Tcp._
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.Coordinator.PeerConnected
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -98,7 +98,9 @@ class ConnectionManagerSpec extends ActorSpec {
     Message.unmarshal(bytes.toVector) shouldBe Some(msg)
   }
 
-  def cleanup(peerConn: ActorRef): Unit =
+  def cleanup(peerConn: ActorRef): Unit = {
     peerConn ! PoisonPill
+    tcpConn.expectMsg(Abort)
+  }
 
 }

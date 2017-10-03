@@ -7,7 +7,6 @@
                 failing because we send the wrong hash
         magnet, mainline DHT
     send Bitfield, Have & Piece
-    check hash when piece completed
     repeat request to tracker
 
 - test

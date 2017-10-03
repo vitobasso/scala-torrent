@@ -59,4 +59,8 @@ class ConnectionManager(portIn: Int)
     }
   }
 
+  override def postStop(): Unit = {
+    tcpManager ! Unbind
+  }
+
 }

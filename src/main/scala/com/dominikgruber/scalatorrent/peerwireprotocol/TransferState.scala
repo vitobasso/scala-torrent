@@ -6,6 +6,7 @@ import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState._
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.Request
+import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.{BitSet, mutable}
 import scala.concurrent.duration._
@@ -15,15 +16,13 @@ case object TransferState {
   val SimultaneousRequests: Int = 5
   val RequestTTL: Duration = 10.seconds
 
-  type Bytes = Array[Byte]
-
   sealed trait PieceStatus
-  case object Missing extends PieceStatus
+  case object Empty extends PieceStatus
   case class InProgress(blocks: Seq[BlockStatus]) extends PieceStatus
   case object Stored extends PieceStatus
 
   sealed trait BlockStatus
-  case object MissingBlock extends BlockStatus
+  case object Missing extends BlockStatus
   case class Pending(since: Long) extends BlockStatus
   case class Received(bytes: Bytes) extends BlockStatus
 
@@ -45,9 +44,9 @@ case class TransferState(metaInfo: MetaInfo) {
   /**
     * Marks which pieces from 0 to [[totalPieces]] we have completed
     */
-  private val pieces: mutable.Seq[PieceStatus] = mutable.Seq.fill(totalPieces)(Missing)
+  private val pieces: mutable.Seq[PieceStatus] = mutable.Seq.fill(totalPieces)(Empty)
 
-  private val pendingRequests = mutable.Map.empty[Request, Long]
+  private val pendingRequests = mutable.Map.empty[Request, Long] //TODO budget per peer
 
   /**
     * Add a received block to the transfer state.
@@ -74,11 +73,18 @@ case class TransferState(metaInfo: MetaInfo) {
   }
 
   /**
-    * @param available in the remote peer
+    * Because checksum validation failed
+    */
+  def resetPiece(piece: Int): Unit = {
+    pieces(piece) = Empty
+  }
+
+  /**
+    * @param piecesTheyHave pieces available in the remote peer
     * @return whether they have any block that we're missing
     */
-  def isAnyPieceNew(available: BitSet): Boolean =
-    newPieces(available).nonEmpty
+  def isAnyPieceNewIn(piecesTheyHave: BitSet): Boolean =
+    newPiecesIn(piecesTheyHave).nonEmpty
 
   /**
     * Create new requests for missing blocks and do something with them
@@ -102,7 +108,7 @@ case class TransferState(metaInfo: MetaInfo) {
   /**
     * How many requests we can still add to the pending ones
     */
-  private def requestBudget: Int = {
+  private def requestBudget: Int = {  //TODO budget per peer
     def notTooOld(epoch: Long): Boolean = {
       val lifeTime: Duration = (currentTimeMillis - epoch).millis
       lifeTime < RequestTTL
@@ -144,7 +150,7 @@ case class TransferState(metaInfo: MetaInfo) {
     }
 
     def randomNewPiece: Option[Int] =
-      newPieces(available).toSeq.randomElement
+      newPiecesIn(available).toSeq.randomElement
 
     def pickPiece: Option[Int] =
       randomPieceInProgress
@@ -152,10 +158,10 @@ case class TransferState(metaInfo: MetaInfo) {
 
     def randomMissingBlock(piece: Int): Option[Int] = {
       pieces(piece) match {
-        case Missing => Some(Random.nextInt(blocksPerPiece))
+        case Empty => Some(Random.nextInt(blocksPerPiece))
         case InProgress(blocks) =>
           blocks.zipWithIndex
-            .collect { case (block, index) if block == MissingBlock => index}
+            .collect { case (block, index) if block == Missing => index}
             .randomElement
         case Stored => None
       }
@@ -168,16 +174,16 @@ case class TransferState(metaInfo: MetaInfo) {
     } yield Request(piece, blockBegin, BlockSize)
   }
 
-  private def newPieces(available: BitSet): BitSet = {
-    val missingIndexes = pieces.zipWithIndex.collect { case (Missing, i) => i }
-    val missing = BitSet(missingIndexes: _*)
-    available & missing
+  private def newPiecesIn(piecesTheyHave: BitSet): BitSet = {
+    val missingIndexes = pieces.zipWithIndex.collect { case (Empty, i) => i }
+    val piecesWeReMissing = BitSet(missingIndexes: _*)
+    piecesTheyHave & piecesWeReMissing
   }
 
   implicit class PieceOps(piece: PieceStatus) {
 
     def requested(block: Int): PieceStatus = piece match {
-      case Missing =>
+      case Empty =>
         InProgress(emptyBlocks).requested(block)
       case InProgress(blocks) =>
         val newStatus = blocks(block).requested
@@ -186,7 +192,7 @@ case class TransferState(metaInfo: MetaInfo) {
     }
 
     def received(newBlock: Int, data: Bytes): PieceStatus = piece match {
-      case Missing =>
+      case Empty =>
         InProgress(emptyBlocks).received(newBlock, data)
       case InProgress(blocks) =>
         InProgress(blocks.updated(newBlock, Received(data)))
@@ -194,23 +200,23 @@ case class TransferState(metaInfo: MetaInfo) {
     }
 
     def progress: Double = piece match {
-      case Missing => 0
+      case Empty => 0
       case InProgress(blocks) => blocks.map(_.progress).sum / blocksPerPiece
       case Stored => 1
     }
 
-    private val emptyBlocks = Seq.fill(blocksPerPiece)(MissingBlock)
+    private val emptyBlocks = Seq.fill(blocksPerPiece)(Missing)
   }
 
   implicit class BlockOps(block: BlockStatus) {
     def requested: BlockStatus = block match {
-      case MissingBlock => Pending(currentTimeMillis)
+      case Missing => Pending(currentTimeMillis)
       case Pending(_) => Pending(currentTimeMillis)
       case Received(bytes) => Received(bytes)
     }
 
     def progress: Double = block match {
-      case MissingBlock => 0
+      case Missing => 0
       case Pending(_) => 0
       case Received(_) => 1
     }
@@ -230,7 +236,7 @@ case class TransferState(metaInfo: MetaInfo) {
 
   object InProgressWithMissing {
     def unapply(status: PieceStatus): Boolean = status match {
-      case InProgress(blocks) => blocks.contains(MissingBlock)
+      case InProgress(blocks) => blocks.contains(Missing)
       case _ => false
     }
   }
