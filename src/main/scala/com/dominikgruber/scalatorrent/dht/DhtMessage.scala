@@ -3,7 +3,7 @@ package com.dominikgruber.scalatorrent.dht
 import java.nio.ByteBuffer
 
 import com.dominikgruber.scalatorrent.util.ByteUtil
-import com.dominikgruber.scalatorrent.util.ByteUtil.unsignedByte
+import com.dominikgruber.scalatorrent.util.ByteUtil.{Hex, unsignedByte}
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
 import shapeless.Nat._
@@ -24,11 +24,12 @@ object DhtMessage {
     def toBigInt: BigInt = BigInt(+1, toBytes)
     def distance(that: Id20B): BigInt = toBigInt ^ that.toBigInt
     override def hashCode(): Int = value.unsized.hashCode
+    override def toString: String = s"NodeId(${Hex(toBytes)})"
   }
   sealed trait Id20BCompanion[A] {
     def apply(value: String20): A
     def validate(value: String): Either[String, A] =
-      value.sized(_20)
+      value.sized[_20]
         .toRight(s"Value must be 20 chars long, but was ${value.length}.")
         .right.map(apply)
     def random: A = {

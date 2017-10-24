@@ -1,19 +1,17 @@
 package com.dominikgruber.scalatorrent.dht
 
-import java.nio.charset.StandardCharsets.ISO_8859_1
-
 import com.dominikgruber.scalatorrent.dht.DhtMessage.NodeId
-import com.dominikgruber.scalatorrent.util.ByteUtil._
-import com.dominikgruber.scalatorrent.util.{ByteUtil, UnitSpec}
+import com.dominikgruber.scalatorrent.dht.Util.node
+import com.dominikgruber.scalatorrent.util.UnitSpec
 
 class DhtNodeSpec extends UnitSpec {
 
   it should "compare equal NodeIds" in {
-    nodeId("01") shouldBe nodeId("01")
+    node("01") shouldBe node("01")
   }
 
   it should "compare different NodeIds" in {
-    nodeId("01") should not be nodeId("02")
+    node("01") should not be node("02")
   }
 
   it should "create a random NodeId" in {
@@ -21,15 +19,9 @@ class DhtNodeSpec extends UnitSpec {
   }
 
   it should "calculate the distance between NodeIds" in {
-    nodeId("00").distance(nodeId("02")) shouldBe 2
-    nodeId("01").distance(nodeId("02")) shouldBe 3
-    nodeId("08").distance(nodeId("01")) shouldBe 9
+    node("00").distance(node("02")) shouldBe node("02").toBigInt
+    node("01").distance(node("02")) shouldBe node("03").toBigInt
+    node("08").distance(node("01")) shouldBe node("09").toBigInt
   }
 
-  def nodeId(hexByte: String): NodeId = {
-    require(hexByte.length == 2)
-    val b: Bytes = Array.fill(19)(0.toByte) ++ bytes(hexByte)
-    val str: String = new String(b, ISO_8859_1)
-    NodeId.validate(str).right.get
-  }
 }
