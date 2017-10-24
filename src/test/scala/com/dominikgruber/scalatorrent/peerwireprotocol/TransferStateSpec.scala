@@ -96,7 +96,6 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   val data: Array[Byte] = Array.empty[Byte]
 
   val pieces = PrivateMethod[mutable.Seq[PieceStatus]]('pieces)
-  val pendingRequests = PrivateMethod[mutable.Map[Request, Long]]('pendingRequests)
   implicit class WhiteBox(sut: TransferState) {
     def getPieces: mutable.Seq[PieceStatus] =
       sut invokePrivate pieces()
