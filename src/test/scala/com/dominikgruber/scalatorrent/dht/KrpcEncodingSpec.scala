@@ -6,14 +6,14 @@ import com.dominikgruber.scalatorrent.util.UnitSpec
 /**
   * Raw strings copied from: http://www.bittorrent.org/beps/bep_0005.html
   */
-class DhtMessageSpec extends UnitSpec {
+class KrpcEncodingSpec extends UnitSpec {
 
   def testCase(name: String, raw: String, msg: DhtMessage.Message): Unit = {
     name should "be encoded" in {
-      DhtMessageEncoding.encode(msg) shouldBe Right(raw)
+      KrpcEncoding.encode(msg) shouldBe Right(raw)
     }
     it should "be decoded" in {
-      DhtMessageEncoding.decode(raw) shouldBe Right(msg)
+      KrpcEncoding.decode(raw) shouldBe Right(msg)
     }
   }
 
@@ -94,10 +94,10 @@ class DhtMessageSpec extends UnitSpec {
   val rawAnnounceRep = "d1:rd2:id20:mnopqrstuvwxyz123456e1:t2:aa1:y1:re"
   val announceRep = AnnouncePeerResponse(transactionId, remoteNode)
   "AnnouncePeerResponse" should "be encoded" in {
-      DhtMessageEncoding.encode(announceRep) shouldBe Right(rawAnnounceRep)
+      KrpcEncoding.encode(announceRep) shouldBe Right(rawAnnounceRep)
   }
   it should "be decoded" in {
-    DhtMessageEncoding.decode(rawAnnounceRep) shouldBe Right(Pong(transactionId, remoteNode)) //FIXME a raw Pong is identical to AnnouncePeerResponse
+    KrpcEncoding.decode(rawAnnounceRep) shouldBe Right(Pong(transactionId, remoteNode)) //FIXME a raw Pong is identical to AnnouncePeerResponse
   }
 
   def nodeId(str: String): NodeId = NodeId.validate(str).right.get

@@ -4,7 +4,7 @@ import com.dominikgruber.scalatorrent.dht.DhtMessage.NodeId
 import com.dominikgruber.scalatorrent.dht.Util.node
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
-class DhtNodeSpec extends UnitSpec {
+class NodeIdSpec extends UnitSpec {
 
   it should "compare equal NodeIds" in {
     node("01") shouldBe node("01")

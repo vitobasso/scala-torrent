@@ -7,7 +7,7 @@ import com.dominikgruber.scalatorrent.dht.DhtBasicEncoding.{parseNodeInfos, seri
 
 import scala.reflect.ClassTag
 
-object DhtMessageEncoding {
+object KrpcEncoding {
 
   def encode[M <: Message](msg: M): Either[String, String] =
     BencodeEncoder(toMap(msg))
@@ -37,7 +37,7 @@ object DhtMessageEncoding {
       msg <- codec.decode(map).right
     } yield msg
 
-  def chooseCodec(map: Map[String, Any]): Either[String, DhtMessageCodec[_ <: Message]] =
+  def chooseCodec(map: Map[String, Any]): Either[String, KRPCCodec[_ <: Message]] =
     map.get("y") match {
       case Some("q") => chooseQueryCodec(map)
       case Some("r") => chooseResponseCodec(map)
@@ -45,7 +45,7 @@ object DhtMessageEncoding {
       case None => Left(s"No value for key 'y'")
     }
 
-  private def chooseQueryCodec(map: Map[String, Any]): Either[String, DhtMessageCodec[_ <: Query]] =
+  private def chooseQueryCodec(map: Map[String, Any]): Either[String, KRPCCodec[_ <: Query]] =
     map.get("q") match {
       case Some("ping") => Right(PingCodec)
       case Some("find_node") => Right(FindReqCodec)
@@ -55,7 +55,7 @@ object DhtMessageEncoding {
       case None => Left(s"No value for key 'q'")
     }
 
-  private def chooseResponseCodec(map: Map[String, Any]): Either[String, DhtMessageCodec[_ <: Message]] =
+  private def chooseResponseCodec(map: Map[String, Any]): Either[String, KRPCCodec[_ <: Message]] =
     map.get("r") match {
       case Some(rMap: Map[String, Any]) =>
         val keys = rMap.keySet
@@ -82,9 +82,9 @@ object DhtMessageEncoding {
 
 }
 
-import com.dominikgruber.scalatorrent.dht.DhtMessageEncoding.MapOps
+import com.dominikgruber.scalatorrent.dht.KrpcEncoding.MapOps
 
-sealed trait DhtMessageCodec[T <: DhtMessage.Message] {
+sealed trait KRPCCodec[T <: DhtMessage.Message] {
   def encode(msg: T): Map[String, Any]
   def decode(map: Map[String, Any]): Either[String, T] =
     for {
@@ -96,7 +96,7 @@ sealed trait DhtMessageCodec[T <: DhtMessage.Message] {
   protected def decodeBody(map: Map[String, Any], trans: TransactionId): Either[String, T]
 }
 
-sealed trait DhtQueryCodec[T <: DhtMessage.Query] extends DhtMessageCodec[T]{
+sealed trait QueryCodec[T <: DhtMessage.Query] extends KRPCCodec[T]{
   override def bodyKey: String = "a"
   def encode(msg: T): Map[String, Any] =
     Map (
@@ -109,7 +109,7 @@ sealed trait DhtQueryCodec[T <: DhtMessage.Query] extends DhtMessageCodec[T]{
   protected def encodeBody(msg: T): Map[String, Any]
 }
 
-sealed trait DhtResponseCodec[T <: DhtMessage.Response] extends DhtMessageCodec[T]{
+sealed trait ResponseCodec[T <: DhtMessage.Response] extends KRPCCodec[T]{
   override def bodyKey: String = "r"
   def encode(msg: T): Map[String, Any] =
     Map (
@@ -121,7 +121,7 @@ sealed trait DhtResponseCodec[T <: DhtMessage.Response] extends DhtMessageCodec[
   protected def decodeBody(map: Map[String, Any], trans: TransactionId): Either[String, T]
 }
 
-case object PingCodec extends DhtQueryCodec[Ping] {
+case object PingCodec extends QueryCodec[Ping] {
   override val q: String = "ping"
   override def encodeBody(ping: Ping) =
     Map("id" -> ping.origin.value.unsized)
@@ -132,7 +132,7 @@ case object PingCodec extends DhtQueryCodec[Ping] {
     } yield Ping(trans, validNode)
 }
 
-case object PongCodec extends DhtResponseCodec[Pong] {
+case object PongCodec extends ResponseCodec[Pong] {
   override def encodeBody(pong: Pong): Map[String, Any] =
     Map("id" -> pong.origin.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId) =
@@ -142,7 +142,7 @@ case object PongCodec extends DhtResponseCodec[Pong] {
     } yield Pong(trans, validNode)
 }
 
-case object FindReqCodec extends DhtQueryCodec[FindNode] {
+case object FindReqCodec extends QueryCodec[FindNode] {
   override val q: String = "find_node"
   override def encodeBody(findQuery: FindNode) =
     Map("id" -> findQuery.origin.value.unsized,
@@ -156,7 +156,7 @@ case object FindReqCodec extends DhtQueryCodec[FindNode] {
     } yield FindNode(trans, validOriginNode, validTargetNode)
 }
 
-case object FindRepCodec extends DhtResponseCodec[FindNodeResponse] {
+case object FindRepCodec extends ResponseCodec[FindNodeResponse] {
   override def encodeBody(findResponse: FindNodeResponse): Map[String, Any] =
     Map("id" -> findResponse.origin.value.unsized,
         "nodes" -> findResponse.nodes
@@ -171,7 +171,7 @@ case object FindRepCodec extends DhtResponseCodec[FindNodeResponse] {
     } yield FindNodeResponse(trans, validNode, validClosestNodes)
 }
 
-case object GetPeersCodec extends DhtQueryCodec[GetPeers] {
+case object GetPeersCodec extends QueryCodec[GetPeers] {
   override val q: String = "get_peers"
   override def encodeBody(getPeers: GetPeers) =
     Map("id" -> getPeers.origin.value.unsized,
@@ -185,7 +185,7 @@ case object GetPeersCodec extends DhtQueryCodec[GetPeers] {
     } yield GetPeers(trans, validOriginNode, validHash)
 }
 
-case object PeersFoundCodec extends DhtResponseCodec[PeersFound] {
+case object PeersFoundCodec extends ResponseCodec[PeersFound] {
   override def encodeBody(peersFound: PeersFound) =
     Map("id" -> peersFound.origin.value.unsized,
         "token" -> peersFound.token.value,
@@ -203,7 +203,7 @@ case object PeersFoundCodec extends DhtResponseCodec[PeersFound] {
     } yield PeersFound(trans, validNode, validToken, validPeers)
 }
 
-case object PeersNotFoundCodec extends DhtResponseCodec[PeersNotFound] {
+case object PeersNotFoundCodec extends ResponseCodec[PeersNotFound] {
   override def encodeBody(peersNotFound: PeersNotFound) =
     Map(
       "id" -> peersNotFound.origin.value.unsized,
@@ -223,7 +223,7 @@ case object PeersNotFoundCodec extends DhtResponseCodec[PeersNotFound] {
     } yield PeersNotFound(trans, validNode, validToken, validNodes)
 }
 
-case object AnnounceReqCodec extends DhtQueryCodec[AnnouncePeer] {
+case object AnnounceReqCodec extends QueryCodec[AnnouncePeer] {
   override val q: String = "announce_peer"
   override def encodeBody(announce: AnnouncePeer) =
     Map(
@@ -256,7 +256,7 @@ case object AnnounceReqCodec extends DhtQueryCodec[AnnouncePeer] {
     }
 }
 
-case object AnnounceRepCodec extends DhtResponseCodec[AnnouncePeerResponse] {
+case object AnnounceRepCodec extends ResponseCodec[AnnouncePeerResponse] {
   override def encodeBody(announce: AnnouncePeerResponse) =
     Map("id" -> announce.origin.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, AnnouncePeerResponse] =
