@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.dht
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage.{Id20B, NodeId}
-import com.dominikgruber.scalatorrent.dht.RoutingTable.{Bucket, Status, _}
+import com.dominikgruber.scalatorrent.dht.DhtMessage.{Id20B, NodeId, NodeInfo}
+import com.dominikgruber.scalatorrent.dht.RoutingTable.{Bucket, NodeEntry, _}
 
 import scala.collection.SortedMap
 import scala.concurrent.duration._
@@ -28,39 +28,39 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     *   and close to "me", then split
     *   otherwise discard
     */
-  def add(node: NodeId): Unit = {
-    val bucket = findBucket(node)
-    bucket.get(node) match {
+  def add(info: NodeInfo): Unit = {
+    val bucket = findBucket(info.id)
+    bucket.get(info.id) match {
       case Some(_) =>
-        addTo(bucket, node)
+        addTo(bucket, info)
       case None =>
         if (bucket.size < k)
-          addTo(bucket, node)
-        else if(containsMe(bucket) && isWorthSplitting(bucket, node)) {
+          addTo(bucket, info)
+        else if(containsMe(bucket) && isWorthSplitting(bucket, info.id)) {
           split(bucket)
-          add(node)
+          add(info)
         } else {
-          replaceOrDiscard(node, bucket)
+          replaceOrDiscard(info, bucket)
         }
     }
   }
 
-  def findClosestNode(id: Id20B): Option[NodeId] = {
+  def findClosestNode(id: Id20B): Option[NodeInfo] = {
     val bucket = findBucket(id)
     val distanceOrder: Ordering[NodeId] = Ordering.by(_.distance(id))
     val order: Ordering[(Quality, NodeId)] = Ordering.Tuple2(QualityOrder, distanceOrder.reverse)
     bucket.nodes.toList
-        .map { case (node, status) => (status.quality, node) }
-        .reduceOption(order.max) //max quality, min distance
-        .map(_._2)
+        .sortBy { case (thisId, NodeEntry(_, quality, _)) => (quality, thisId) }(order)
+        .lastOption //max quality, min distance
+        .map(_._2.info)
   }
 
   private def findBucket(id: Id20B): Bucket =
     buckets.filterKeys(_ <= id).last._2
 
-  private def addTo(bucket: Bucket, id: NodeId): Unit = {
-    require(bucket.canContain(id))
-    update(bucket, _ + (id -> Status.fresh))
+  private def addTo(bucket: Bucket, info: NodeInfo): Unit = {
+    require(bucket.canContain(info.id))
+    update(bucket, _ + (info.id -> NodeEntry.fresh(info)))
   }
 
   private def removeFrom(bucket: Bucket, id: NodeId): Unit = {
@@ -68,7 +68,7 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     update(bucket, _ - id)
   }
 
-  private def update(bucket: Bucket, change: Map[NodeId, Status] => Map[NodeId, Status]): Unit = {
+  private def update(bucket: Bucket, change: Map[NodeId, NodeEntry] => Map[NodeId, NodeEntry]): Unit = {
     val updatedNodes = change(bucket.nodes)
     val updatedBucket = Bucket(updatedNodes, bucket.min, bucket.max)
     buckets += (bucket.min -> updatedBucket)
@@ -90,8 +90,8 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     buckets += entry2
   }
 
-  type Entry = (BigInt, Bucket)
-  private def prepareSplit(bucket: Bucket): (Entry, Entry) = {
+  type BucketEntry = (BigInt, Bucket)
+  private def prepareSplit(bucket: Bucket): (BucketEntry, BucketEntry) = {
     val mid = (bucket.min + bucket.max) / 2
     val firstHalf = bucket.nodes.filter(_._1 < mid)
     val firstBucket = Bucket(firstHalf, bucket.min, mid)
@@ -102,23 +102,23 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     (firstEntry, secondEntry)
   }
 
-  private def replaceOrDiscard(node: NodeId, bucket: Bucket): Unit =
-    getWorstNode(bucket) match {
+  private def replaceOrDiscard(node: NodeInfo, bucket: Bucket): Unit =
+    findWorst(bucket) match {
       case Some((_, Good)) =>
         //noop: discard the new node
       case Some((worst, _)) =>
         removeFrom(bucket, worst)
         addTo(bucket, node)
       case None =>
-        //noop: unexpected, shouldn't have called if bucket is empty
+        //noop: unexpected, shouldn't have called this function if bucket is empty
     }
 
-  private def getWorstNode(bucket: Bucket): Option[(NodeId, Quality)] = {
+  private def findWorst(bucket: Bucket): Option[(NodeId, Quality)] = {
     val order: Ordering[(Quality, Long)] = Ordering.Tuple2(QualityOrder.reverse, Ordering.Long.reverse)
     bucket.nodes.toList
-      .sortBy { case (_, Status(quality, lastAcive)) => (quality, lastAcive) }(order)
-      .map { case (node, Status(quality, _)) => (node, quality) }
+      .sortBy { case (_, NodeEntry(_, quality, lastAcive)) => (quality, lastAcive) }(order)
       .lastOption //min quality, min lastActive
+      .map { case (id, NodeEntry(_, quality, _)) => (id, quality) }
   }
 
 }
@@ -141,18 +141,18 @@ object RoutingTable {
     Ordering.by(ranking)
   }
 
-  case class Status(quality: Quality, lastAcive: Long)
-  object Status {
-    val fresh = Status(Good, System.currentTimeMillis)
+  case class NodeEntry(info: NodeInfo, quality: Quality, lastAcive: Long)
+  object NodeEntry {
+    def fresh(info: NodeInfo) = NodeEntry(info, Good, System.currentTimeMillis)
   }
 
   /**
     * @param min inclusive
     * @param max exclusive
     */
-  case class Bucket(nodes: Map[NodeId, Status], min: BigInt, max: BigInt) {
+  case class Bucket(nodes: Map[NodeId, NodeEntry], min: BigInt, max: BigInt) {
     def size: Int = nodes.size
-    def get(node: NodeId): Option[Status] = nodes.get(node)
+    def get(node: NodeId): Option[NodeEntry] = nodes.get(node)
     def contains(node: NodeId): Boolean = get(node).isDefined
     def canContain(node: NodeId): Boolean = min <= node && node < max
   }

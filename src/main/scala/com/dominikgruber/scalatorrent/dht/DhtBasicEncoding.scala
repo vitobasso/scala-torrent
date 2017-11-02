@@ -42,7 +42,7 @@ object DhtBasicEncoding {
     val peerInfo = DhtMessage.PeerInfo(nodeInfo.ip, nodeInfo.port)
     val addrByes: Array[Byte] = toBytesVia(PeerInfo.toParts)(peerInfo)
     val addrStr = new String(addrByes, ISO_8859_1)
-    val nodeId: String = nodeInfo.node.value.unsized
+    val nodeId: String = nodeInfo.id.value.unsized
     nodeId + addrStr
   }
 
