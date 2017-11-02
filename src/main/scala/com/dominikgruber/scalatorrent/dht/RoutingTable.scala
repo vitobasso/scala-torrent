@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent.dht
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage.{Id20B, InfoHash, NodeId}
+import com.dominikgruber.scalatorrent.dht.DhtMessage.{Id20B, NodeId}
 import com.dominikgruber.scalatorrent.dht.RoutingTable.{Bucket, Status, _}
 
 import scala.collection.SortedMap
@@ -45,9 +45,9 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     }
   }
 
-  def findClosestNode(hash: InfoHash): Option[NodeId] = {
-    val bucket = findBucket(hash)
-    val distanceOrder: Ordering[NodeId] = Ordering.by(_.distance(hash))
+  def findClosestNode(id: Id20B): Option[NodeId] = {
+    val bucket = findBucket(id)
+    val distanceOrder: Ordering[NodeId] = Ordering.by(_.distance(id))
     val order: Ordering[(Quality, NodeId)] = Ordering.Tuple2(QualityOrder, distanceOrder.reverse)
     bucket.nodes.toList
         .map { case (node, status) => (status.quality, node) }
