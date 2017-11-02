@@ -4,7 +4,7 @@ import com.dominikgruber.scalatorrent.dht.RoutingTable._
 import com.dominikgruber.scalatorrent.util.UnitSpec
 import org.scalatest.PrivateMethodTester
 import Util._
-import com.dominikgruber.scalatorrent.dht.DhtMessage.NodeId
+import com.dominikgruber.scalatorrent.dht.DhtMessage.{NodeId, NodeInfo}
 
 import scala.collection.SortedMap
 
@@ -21,7 +21,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
   it should "add a node" in {
     val table = RoutingTable(node("0A"), 4)
     val before = System.currentTimeMillis
-    table.add(node("01"))
+    table.add(nodeInfo("01"))
     val after = System.currentTimeMillis
 
     table.buckets.size shouldBe 1
@@ -35,10 +35,10 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   it should "fit k nodes in the 1st bucket" in {
     val table = RoutingTable(node("00"), 4)
-    table.add(node("01"))
-    table.add(node("02"))
-    table.add(node("03"))
-    table.add(node("04"))
+    table.add(nodeInfo("01"))
+    table.add(nodeInfo("02"))
+    table.add(nodeInfo("03"))
+    table.add(nodeInfo("04"))
 
     table.buckets.size shouldBe 1
     val (_, Bucket(nodes, _, _)) = table.buckets.head
@@ -112,25 +112,28 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   it should "find the closest node" in {
     val table = Scenario.table
-    table.findClosestNode(hash("01")) shouldBe Some(Scenario.nodeD1)
-    table.findClosestNode(hash("7F")) shouldBe Some(Scenario.nodeD2)
-    table.findClosestNode(hash("FF")) shouldBe Some(Scenario.nodeC2)
-    table.findClosestNode(hash("80")) shouldBe Some(Scenario.nodeA1)
+    table.findClosestNode(hash("01")).get.id shouldBe Scenario.nodeD1
+    table.findClosestNode(hash("7F")).get.id shouldBe Scenario.nodeD2
+    table.findClosestNode(hash("FF")).get.id shouldBe Scenario.nodeC2
+    table.findClosestNode(hash("80")).get.id shouldBe Scenario.nodeA1
   }
 
   /**
     * Adds a node and checks the expected buckets count
     */
   def add(table: RoutingTable, nodeId: String, expectedBuckets: Int): NodeId = {
-    val newNode = node(nodeId)
+    val newNode = nodeInfo(nodeId)
     table.add(newNode)
     table.buckets.size shouldBe expectedBuckets
-    newNode
+    newNode.id
   }
 
   type Buckets = SortedMap[BigInt, Bucket]
   implicit class WhiteBox(sut: RoutingTable) {
     def buckets: Buckets = sut invokePrivate PrivateMethod[Buckets]('buckets)()
   }
+
+  def nodeInfo(hexByte: String): NodeInfo =
+    NodeInfo(Util.node(hexByte), DhtMessage.Ip(0), DhtMessage.Port(0))
 
 }
