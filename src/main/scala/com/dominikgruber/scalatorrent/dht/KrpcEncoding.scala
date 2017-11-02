@@ -22,13 +22,13 @@ object KrpcEncoding {
   def toMap(msg: Message): Map[String, Any] = msg match {
     case m: Ping => PingCodec.encode(m)
     case m: Pong => PongCodec.encode(m)
-    case m: FindNode => FindReqCodec.encode(m)
-    case m: FindNodeResponse => FindRepCodec.encode(m)
+    case m: FindNode => FindNodeCodec.encode(m)
+    case m: NodesFound => NodesFoundCodec.encode(m)
     case m: GetPeers => GetPeersCodec.encode(m)
     case m: PeersFound => PeersFoundCodec.encode(m)
     case m: PeersNotFound => PeersNotFoundCodec.encode(m)
-    case m: AnnouncePeer => AnnounceReqCodec.encode(m)
-    case m: AnnouncePeerResponse => AnnounceRepCodec.encode(m)
+    case m: AnnouncePeer => AnnouncePeerCodec.encode(m)
+    case m: PeerReceived => PeerReceivedCodec.encode(m)
   }
 
   def fromMap(map: Map[String, Any]): Either[String, _ <: Message] =
@@ -48,9 +48,9 @@ object KrpcEncoding {
   private def chooseQueryCodec(map: Map[String, Any]): Either[String, KRPCCodec[_ <: Query]] =
     map.get("q") match {
       case Some("ping") => Right(PingCodec)
-      case Some("find_node") => Right(FindReqCodec)
+      case Some("find_node") => Right(FindNodeCodec)
       case Some("get_peers") => Right(GetPeersCodec)
-      case Some("announce_peer") => Right(AnnounceReqCodec)
+      case Some("announce_peer") => Right(AnnouncePeerCodec)
       case Some(other) => Left(s"Unexpected value for key 'q': $other")
       case None => Left(s"No value for key 'q'")
     }
@@ -60,7 +60,7 @@ object KrpcEncoding {
       case Some(rMap: Map[String, Any]) =>
         val keys = rMap.keySet
         if(keys == Set("id")) Right(PongCodec)
-        else if(keys == Set("id", "nodes")) Right(FindRepCodec)
+        else if(keys == Set("id", "nodes")) Right(NodesFoundCodec)
         else if(keys == Set("id", "token", "values")) Right(PeersFoundCodec)
         else if(keys == Set("id", "token", "nodes")) Right(PeersNotFoundCodec)
         else Left(s"Unknown response type with keys: $keys")
@@ -142,7 +142,7 @@ case object PongCodec extends ResponseCodec[Pong] {
     } yield Pong(trans, validNode)
 }
 
-case object FindReqCodec extends QueryCodec[FindNode] {
+case object FindNodeCodec extends QueryCodec[FindNode] {
   override val q: String = "find_node"
   override def encodeBody(findQuery: FindNode) =
     Map("id" -> findQuery.origin.value.unsized,
@@ -156,8 +156,8 @@ case object FindReqCodec extends QueryCodec[FindNode] {
     } yield FindNode(trans, validOriginNode, validTargetNode)
 }
 
-case object FindRepCodec extends ResponseCodec[FindNodeResponse] {
-  override def encodeBody(findResponse: FindNodeResponse): Map[String, Any] =
+case object NodesFoundCodec extends ResponseCodec[NodesFound] {
+  override def encodeBody(findResponse: NodesFound): Map[String, Any] =
     Map("id" -> findResponse.origin.value.unsized,
         "nodes" -> findResponse.nodes
           .map(serializeNodeInfo)
@@ -168,7 +168,7 @@ case object FindRepCodec extends ResponseCodec[FindNodeResponse] {
       closestNodes <- args.getA[String]("nodes").right
       validNode <- NodeId.validate(node).right
       validClosestNodes <- parseNodeInfos(closestNodes).right
-    } yield FindNodeResponse(trans, validNode, validClosestNodes)
+    } yield NodesFound(trans, validNode, validClosestNodes)
 }
 
 case object GetPeersCodec extends QueryCodec[GetPeers] {
@@ -223,7 +223,7 @@ case object PeersNotFoundCodec extends ResponseCodec[PeersNotFound] {
     } yield PeersNotFound(trans, validNode, validToken, validNodes)
 }
 
-case object AnnounceReqCodec extends QueryCodec[AnnouncePeer] {
+case object AnnouncePeerCodec extends QueryCodec[AnnouncePeer] {
   override val q: String = "announce_peer"
   override def encodeBody(announce: AnnouncePeer) =
     Map(
@@ -256,12 +256,12 @@ case object AnnounceReqCodec extends QueryCodec[AnnouncePeer] {
     }
 }
 
-case object AnnounceRepCodec extends ResponseCodec[AnnouncePeerResponse] {
-  override def encodeBody(announce: AnnouncePeerResponse) =
+case object PeerReceivedCodec extends ResponseCodec[PeerReceived] {
+  override def encodeBody(announce: PeerReceived) =
     Map("id" -> announce.origin.value.unsized)
-  override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, AnnouncePeerResponse] =
+  override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeerReceived] =
     for {
       node <- args.getA[String]("id").right
       validNode <- NodeId.validate(node).right
-    } yield AnnouncePeerResponse(trans, validNode)
+    } yield PeerReceived(trans, validNode)
 }

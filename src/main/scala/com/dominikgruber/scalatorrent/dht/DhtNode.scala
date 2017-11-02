@@ -43,7 +43,7 @@ case class DhtNode(selfNode: NodeId, udpSender: ActorRef) extends Actor with Act
       send(remote, Pong(trans, selfNode))
     case FindNode(trans, origin, target) =>
       val nodes: Seq[NodeInfo] = table.findClosestNode(target).toSeq //TODO 8 closest nodes
-      send(remote, FindNodeResponse(trans, selfNode, nodes))
+      send(remote, NodesFound(trans, selfNode, nodes))
     case GetPeers(trans, origin, hash) =>
       ???
   }
@@ -54,7 +54,7 @@ case class DhtNode(selfNode: NodeId, udpSender: ActorRef) extends Actor with Act
   def handleResponse(msg: Response, remote: InetSocketAddress): Receive = {
     case Pong(trans, origin) =>
       ???
-    case FindNodeResponse(trans, origin, nodes) =>
+    case NodesFound(trans, origin, nodes) =>
       ???
     case PeersFound(trans, origin, token, peers) =>
       ???
