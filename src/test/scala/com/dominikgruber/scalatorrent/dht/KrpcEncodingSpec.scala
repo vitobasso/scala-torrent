@@ -59,9 +59,9 @@ class KrpcEncodingSpec extends UnitSpec {
     Seq(node1, node2)
   }
 
-  testCase("FindNodeResponse",
+  testCase("NodesFound",
     raw = s"d1:rd2:id20:abcdefghij01234567895:nodes52:${rawNodes}e1:t2:aa1:y1:re",
-    msg = FindNodeResponse(transactionId, localNode, nodes)
+    msg = NodesFound(transactionId, localNode, nodes)
   )
 
 
@@ -91,13 +91,13 @@ class KrpcEncodingSpec extends UnitSpec {
     msg = AnnouncePeer(transactionId, localNode, infoHash, Some(Port(6881)), token)
   )
 
-  val rawAnnounceRep = "d1:rd2:id20:mnopqrstuvwxyz123456e1:t2:aa1:y1:re"
-  val announceRep = AnnouncePeerResponse(transactionId, remoteNode)
-  "AnnouncePeerResponse" should "be encoded" in {
-      KrpcEncoding.encode(announceRep) shouldBe Right(rawAnnounceRep)
+  val rawPeerReceived = "d1:rd2:id20:mnopqrstuvwxyz123456e1:t2:aa1:y1:re"
+  val peerReceived = PeerReceived(transactionId, remoteNode)
+  "PeerReceived" should "be encoded" in {
+      KrpcEncoding.encode(peerReceived) shouldBe Right(rawPeerReceived)
   }
   it should "be decoded" in {
-    KrpcEncoding.decode(rawAnnounceRep) shouldBe Right(Pong(transactionId, remoteNode)) //FIXME a raw Pong is identical to AnnouncePeerResponse
+    KrpcEncoding.decode(rawPeerReceived) shouldBe Right(Pong(transactionId, remoteNode)) //FIXME a raw Pong is identical to AnnouncePeerResponse
   }
 
   def nodeId(str: String): NodeId = NodeId.validate(str).right.get

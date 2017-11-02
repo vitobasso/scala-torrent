@@ -131,14 +131,14 @@ object DhtMessage {
   case class Pong(trans: TransactionId, origin: NodeId) extends Response
 
   case class FindNode(trans: TransactionId, origin: NodeId, target: NodeId) extends Query
-  case class FindNodeResponse(trans: TransactionId, origin: NodeId, nodes: Seq[NodeInfo]) extends Response
+  case class NodesFound(trans: TransactionId, origin: NodeId, nodes: Seq[NodeInfo]) extends Response
 
   case class GetPeers(trans: TransactionId, origin: NodeId, infoHash: InfoHash) extends Query
   case class PeersFound(trans: TransactionId, origin: NodeId, token: Token, peers: Seq[PeerInfo]) extends Response
   case class PeersNotFound(trans: TransactionId, origin: NodeId, token: Token, closestNodes: Seq[NodeInfo]) extends Response
 
   case class AnnouncePeer(trans: TransactionId, origin: NodeId, infoHash: InfoHash, port: Option[Port], token: Token) extends Query
-  case class AnnouncePeerResponse(trans: TransactionId, origin: NodeId) extends Response
+  case class PeerReceived(trans: TransactionId, origin: NodeId) extends Response
 
   def method(q: Query): String = q match {
     case _: Ping => "ping"
