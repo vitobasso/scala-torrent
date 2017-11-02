@@ -13,7 +13,7 @@ import scala.language.{implicitConversions, postfixOps}
   * @param k: number of nodes per bucket. must be a power of 2.
   * @param me: id of the node owning this table
   */
-case class RoutingTable(k: Int, me: NodeId) {
+case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
   def isPowerOf2(i: Int): Boolean = (i & -i) == i
   require(isPowerOf2(k))
 
@@ -125,6 +125,7 @@ case class RoutingTable(k: Int, me: NodeId) {
 
 object RoutingTable {
 
+  val DefaultNodesPerBucket = 8
   val TimeToInactiveNode: Duration = 15 minutes
   val TimeToRefreshBucket: Duration = 15 minutes
   val Min: BigInt = BigInt(0)

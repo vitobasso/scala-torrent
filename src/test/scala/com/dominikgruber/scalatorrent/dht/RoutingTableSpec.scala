@@ -14,12 +14,12 @@ import scala.collection.SortedMap
 class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   it should "create the first bucket" in {
-    val table = RoutingTable(4, node("0A"))
+    val table = RoutingTable(node("0A"), 4)
     table.buckets shouldBe Map(Min -> Bucket(Map.empty, Min, Max))
   }
 
   it should "add a node" in {
-    val table = RoutingTable(4, node("0A"))
+    val table = RoutingTable(node("0A"), 4)
     val before = System.currentTimeMillis
     table.add(node("01"))
     val after = System.currentTimeMillis
@@ -34,7 +34,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "fit k nodes in the 1st bucket" in {
-    val table = RoutingTable(4, node("00"))
+    val table = RoutingTable(node("00"), 4)
     table.add(node("01"))
     table.add(node("02"))
     table.add(node("03"))
@@ -47,7 +47,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   it should "split the 1st bucket in two" in {
     val me = node("80")             //- - o -
-    val table = RoutingTable(2, me)
+    val table = RoutingTable(me, 2)
     val node1 = add(table, "01", 1) //o - - -
     val node2 = add(table, "02", 1) //o - - -
     val node3 = add(table, "FF", 2) //- -|- o <- should split
@@ -68,7 +68,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   it should "not split if all nodes still fall in one bucket" in {
     val me = node("00")             //o - - -
-    val table = RoutingTable(2, me)
+    val table = RoutingTable(me, 2)
     val node1 = add(table, "01", 1) //o - - -
     val node2 = add(table, "02", 1) //o - - -
     val node3 = add(table, "03", 1) //x - - - <- should discard
@@ -79,7 +79,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   it should "split the middle bucket out of three" in {
     val me = node("80")              //- - - - o - - -
-    val table = RoutingTable(2, me)
+    val table = RoutingTable(me, 2)
     val node1a = add(table, "01", 1) //o - - - - - - -
     val node1b = add(table, "02", 1) //o - - - - - - -
     val node2a = add(table, "F1", 2) //- - - -|- - - o
@@ -97,7 +97,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
 
   object Scenario {
     val me = node("80")              //- - - - o - - -
-    val table = RoutingTable(2, me)
+    val table = RoutingTable(me, 2)
     val nodeD1 = add(table, "01", 1) //o - - - - - - -
     val nodeD2 = add(table, "02", 1) //o - - - - - - -
     val nodeC1 = add(table, "F1", 2) //- - - -|- - - o
