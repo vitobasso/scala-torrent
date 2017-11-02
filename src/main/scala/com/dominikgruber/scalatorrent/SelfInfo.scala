@@ -1,5 +1,7 @@
 package com.dominikgruber.scalatorrent
 
+import com.dominikgruber.scalatorrent.dht.DhtMessage.NodeId
+
 import scala.util.Random
 
 object SelfInfo {
@@ -19,5 +21,8 @@ object SelfInfo {
     def rand = 100000 + Random.nextInt(899999)
     s"-SC0001-$rand$rand"
   }
+
+  //TODO generate once and persist
+  val nodeId: NodeId = NodeId.random
 
 }

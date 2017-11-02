@@ -3,6 +3,10 @@
     accept:
         ~ magnet, mainline DHT
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
+    dht
+        ~ node connection actor
+        - manager actor
+        - persist routing table
     send Bitfield, Have & Piece
     repeat request to tracker
 
