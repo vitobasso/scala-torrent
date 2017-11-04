@@ -1,8 +1,11 @@
 package com.dominikgruber.scalatorrent.util
 
+import java.nio.charset.StandardCharsets.ISO_8859_1
+
 import akka.util.ByteString
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Random
 
 object ByteUtil {
 
@@ -24,6 +27,12 @@ object ByteUtil {
   def sha1Hash(bytes: Bytes): Bytes = {
     val md = java.security.MessageDigest.getInstance("SHA-1")
     md.digest(bytes)
+  }
+
+  def randomString(nBytes: Int): String = {
+    val bytes = Array.fill[Byte](nBytes)(0)
+    Random.nextBytes(bytes)
+    new String(bytes, ISO_8859_1)
   }
 
 }

@@ -22,7 +22,7 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
   )
 
   /**
-    * Adds a node to the table.
+    * Adds a node to the table; or
     * If already there, update quality to Good & lastActive to now
     * If bucket is full
     *   and close to "me", then split
@@ -45,15 +45,10 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     }
   }
 
-  def findClosestNode(id: Id20B): Option[NodeInfo] = {
-    val bucket = findBucket(id)
-    val distanceOrder: Ordering[NodeId] = Ordering.by(_.distance(id))
-    val order: Ordering[(Quality, NodeId)] = Ordering.Tuple2(QualityOrder, distanceOrder.reverse)
-    bucket.nodes.toList
-        .sortBy { case (thisId, NodeEntry(_, quality, _)) => (quality, thisId) }(order)
-        .lastOption //max quality, min distance
-        .map(_._2.info)
-  }
+  def findClosestNodes(id: Id20B): Seq[NodeInfo] =
+    findBucket(id)
+      .nodes.values
+      .map(_.info).toSeq
 
   private def findBucket(id: Id20B): Bucket =
     buckets.filterKeys(_ <= id).last._2
@@ -149,6 +144,7 @@ object RoutingTable {
   /**
     * @param min inclusive
     * @param max exclusive
+    * @todo lastChanged
     */
   case class Bucket(nodes: Map[NodeId, NodeEntry], min: BigInt, max: BigInt) {
     def size: Int = nodes.size
