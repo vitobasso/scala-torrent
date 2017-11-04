@@ -111,11 +111,16 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
   //TODO should discard a bad node
 
   it should "find the closest node" in {
-    val table = Scenario.table
-    table.findClosestNode(hash("01")).get.id shouldBe Scenario.nodeD1
-    table.findClosestNode(hash("7F")).get.id shouldBe Scenario.nodeD2
-    table.findClosestNode(hash("FF")).get.id shouldBe Scenario.nodeC2
-    table.findClosestNode(hash("80")).get.id shouldBe Scenario.nodeA1
+    def testCase(target: String, expectedResult: Seq[NodeId]) =
+      Scenario.table
+        .findClosestNodes(hash(target)).map(_.id)
+        .should(contain theSameElementsInOrderAs expectedResult)
+
+    import Scenario._
+    testCase("01", Seq(nodeD1, nodeD2))
+    testCase("7F", Seq(nodeD1, nodeD2))
+    testCase("FF", Seq(nodeC1, nodeC2))
+    testCase("80", Seq(nodeA1))
   }
 
   /**

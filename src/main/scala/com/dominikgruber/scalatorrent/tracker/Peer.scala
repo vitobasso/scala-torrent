@@ -4,7 +4,7 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
 object PeerAddress {
-  implicit def toPeerAddress(inetAddress: InetSocketAddress) =
+  implicit def fromInetSocketAddress(inetAddress: InetSocketAddress) =
     PeerAddress(inetAddress.getHostName, inetAddress.getPort)
 }
 case class PeerAddress(ip: String, port: Int){

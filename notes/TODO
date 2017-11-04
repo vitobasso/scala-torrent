@@ -4,9 +4,10 @@
         ~ magnet, mainline DHT
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
     dht
-        ~ node connection actor
-        - manager actor
+        ~ manager actor
         - persist routing table
+        - persist peer info
+        - refresh buckets (lastChagned 15min)
     send Bitfield, Have & Piece
     repeat request to tracker
 
