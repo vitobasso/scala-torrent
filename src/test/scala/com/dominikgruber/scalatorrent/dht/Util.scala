@@ -2,7 +2,8 @@ package com.dominikgruber.scalatorrent.dht
 
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
-import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{InfoHash, NodeId}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
+import com.dominikgruber.scalatorrent.util.ByteUtil
 import com.dominikgruber.scalatorrent.util.ByteUtil.{Bytes, bytes}
 
 object Util {
@@ -22,5 +23,18 @@ object Util {
     */
   def hash(hexByte: String): InfoHash =
     InfoHash(node(hexByte).value)
+
+
+  def nodeInfo(hexByte: String): NodeInfo = {
+    require(hexByte.length == 2)
+    val b = ByteUtil.bytes(hexByte).head
+    NodeInfo(node(hexByte), Ip(0, 0, 0, b), Port(b))
+  }
+
+  def peerInfo(hexByte: String): PeerInfo = {
+    require(hexByte.length == 2)
+    val b = ByteUtil.bytes(hexByte).head
+    PeerInfo(Ip(0, 0, 0, b), Port(b))
+  }
 
 }
