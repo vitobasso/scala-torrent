@@ -15,7 +15,9 @@ http://torrenteditor.com/
 #DHT
 http://www.bittorrent.org/beps/bep_0005.html
 https://en.wikipedia.org/wiki/Kademlia
+https://en.wikipedia.org/wiki/Mainline_DHT
 https://blog.maidsafe.net/2016/05/27/structuring-networks-with-xor/
+https://gist.github.com/gubatron/cd9cfa66839e18e49846
 
 #udp tracker
 http://www.bittorrent.org/beps/bep_0015.html

@@ -84,7 +84,8 @@ case object DhtNodeActor {
 
 case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with ActorLogging {
 
-  val table = RoutingTable(SelfInfo.nodeId)
+  val routingTable = RoutingTable(SelfInfo.nodeId)
+  val peersMap: Map[InfoHash, Set[PeerInfo]] = Map.empty
 
   /**
     * Requests by local actors being currently processed by this actor
@@ -103,7 +104,7 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
 
   override def receive: Receive = {
     case SearchPeers(hash) => startPeerSearch(hash)
-    case AddNode(info) => table.add(info)
+    case AddNode(info) => routingTable.add(info)
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
       case q: Query =>
         handleQuery(q, remote)
@@ -121,7 +122,7 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
     case Ping(trans, origin) =>
       send(remote, Pong(trans, selfNode))
     case FindNode(trans, origin, target) =>
-      val nodes = table.findClosestNodes(target)
+      val nodes = routingTable.findClosestNodes(target) //TODO filter out farther than self
       send(remote, NodesFound(trans, selfNode, nodes))
     case GetPeers(trans, origin, hash) =>
       ??? //TODO store peer info
@@ -130,7 +131,7 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
   def handleResponse(msg: Response, remote: InetSocketAddress): Receive = {
     case Pong(trans, origin) => //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
-      nodes.foreach(table.add)
+      nodes.foreach(routingTable.add)
     case PeersFound(trans, origin, token, peers) =>
       endTransaction(origin, trans) match {
         case Right(request) =>
@@ -155,12 +156,12 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
 
   def updateTable(id: NodeId, addr: InetSocketAddress): Unit =
     NodeInfo.parse(id, addr) match {
-      case Right(info) => table.add(info)
+      case Right(info) => routingTable.add(info)
       case Left(err) => log.warning(s"Couldn't update routing table: $err")
     }
 
   def startPeerSearch(hash: InfoHash): Unit =
-    table.findClosestNodes(hash).foreach { node =>
+    routingTable.findClosestNodes(hash).foreach { node =>
       val request = SearchRequest(hash, sender, now)
       beginTransaction(request, node)
       pendingRequests += (request -> RequestStatus.fresh)
@@ -171,7 +172,7 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
       case Seq.empty =>
         log.warning(s"Can't continue peer search for ${request.target}: New nodes aren't closer than before")
       case closerNodes =>
-        closerNodes.foreach { beginTransaction(request, _) } //TODO prevent exponential growth: limit pending transactions, hold new closer nodes.
+        closerNodes.foreach { beginTransaction(request, _) } //TODO limit pending transactions, hold new closer nodes.
         val newClosest = closerNodes.map(_.id.distance(request.target)).min
         pendingRequests += (request -> status.updated(newClosest))
     }
