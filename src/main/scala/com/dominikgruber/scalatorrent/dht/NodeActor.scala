@@ -4,9 +4,9 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.dominikgruber.scalatorrent.SelfInfo
-import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import com.dominikgruber.scalatorrent.dht.NodeActor._
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -16,7 +16,6 @@ import scala.language.postfixOps
   */
 case object NodeActor {
 
-  val RequestTTL: FiniteDuration = 1 minute
   val CleanupInterval: FiniteDuration = 5 minutes
 
   /**
@@ -25,46 +24,36 @@ case object NodeActor {
   case class Transaction(node: NodeId, id: TransactionId)
 
   /**
-    * Remembers an ongoing search requested by a local actor
+    * Will cause this actor to discover new nodes and update the routing table.
+    * There's no response to be returned.
     */
-  case class SearchRequest(target: InfoHash, sender: ActorRef, startedAt: Long)
-  case class RequestStatus(closestSoFar: BigInt, lastActivity: Long, fulfilled: Boolean) {
-    def isActive: Boolean =
-      !fulfilled &&
-        (now - lastActivity).millis > RequestTTL
-    def updated(newDistance: BigInt): RequestStatus =
-      copy(closestSoFar = newDistance, lastActivity = now)
-  }
-  object RequestStatus {
-    def fresh = RequestStatus(Id20B.Max, now, fulfilled = false)
-    def fulfilled = RequestStatus(0, now, fulfilled = true)
-  }
+  case class SearchNode(id: NodeId)
 
   /**
-    * Request from a local actor
+    * Request from a local actor.
+    * Results in [[FoundPeers]]
     */
   case class SearchPeers(hash: InfoHash)
 
   /**
-    * Our response to [[SearchPeers]]
+    * This actor's response to [[SearchPeers]]
     */
-  case class FoundPeers(peers: Seq[PeerInfo])
+  case class FoundPeers(target: InfoHash, peers: Seq[PeerInfo])
 
   /**
-    * A local actor found it in a torrent file, we should add to routing table
+    * Add this node to routing table.
+    * E.g.: It was found in a torrent file
     */
   case class AddNode(node: NodeInfo)
 
   /**
     * Scheduled by the actor itself to cleanup old request and related transactions
     */
-  case object ForgetOldRequests
+  case object CleanInactiveSearches
 
   implicit class NodeInfoOps(info: NodeInfo) {
     def address: InetSocketAddress = new InetSocketAddress(info.ip.toString, info.port.toInt)
   }
-
-  def now: Long = System.currentTimeMillis
 
   /*
     find peers
@@ -77,33 +66,29 @@ case object NodeActor {
 
     init
       upon inserting first node in table:
-        find nodes, every time closer, until can't find mroe
+        find nodes, every time closer, until can't find more
    */
 
 }
 
+/**
+  * A node in a DHT network
+  */
 case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with ActorLogging {
 
   val routingTable = RoutingTable(SelfInfo.nodeId)
-  val peersMap: Map[InfoHash, Set[PeerInfo]] = Map.empty
+  val peerMap = PeerMap()
 
-  /**
-    * Requests by local actors being currently processed by this actor
-    */
-  var pendingRequests: Map[SearchRequest, RequestStatus] = Map.empty
-
-  /**
-    * [[Transaction]]s from this actor to remote nodes
-    * Multiple transactions may be active to fulfill one [[SearchRequest]]
-    */
-  var pendingTransactions: Map[Transaction, SearchRequest] = Map.empty
+  val peerSearches = PeersSearches
+  val nodeSearches = NodeSearches
 
   override def preStart(): Unit = {
     scheduleCleanup()
   }
 
   override def receive: Receive = {
-    case SearchPeers(hash) => startPeerSearch(hash)
+    case SearchNode(id) => nodeSearches.start(id)
+    case SearchPeers(hash) => peerSearches.start(hash)
     case AddNode(info) => routingTable.add(info)
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
       case q: Query =>
@@ -115,98 +100,100 @@ case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with A
       case Error(_, code, message) =>
         log.error(s"Received dht error $code: $message")
     }
-    case ForgetOldRequests => cleanup()
+    case CleanInactiveSearches =>
+      nodeSearches.cleanInactive()
+      peerSearches.cleanInactive()
   }
 
-  def handleQuery(msg: Query, remote: InetSocketAddress): Receive = {
+  private def handleQuery(msg: Query, remote: InetSocketAddress): Unit = msg match {
     case Ping(trans, origin) =>
       send(remote, Pong(trans, selfNode))
     case FindNode(trans, origin, target) =>
-      val nodes = routingTable.findClosestNodes(target) //TODO filter out farther than self
-      send(remote, NodesFound(trans, selfNode, nodes))
+      answerFindNode(remote, trans, target)
     case GetPeers(trans, origin, hash) =>
-      ??? //TODO store peer info
+      answerGetPeers(remote, trans, hash)
   }
 
-  def handleResponse(msg: Response, remote: InetSocketAddress): Receive = {
-    case Pong(trans, origin) => //noop: already updated table
+  private def handleResponse(msg: Response, remote: InetSocketAddress): Unit = msg match {
+    case Pong(trans, origin) =>
+      //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
-      nodes.foreach(routingTable.add)
+      nodeSearches.continue(trans, origin, nodes)
     case PeersFound(trans, origin, token, peers) =>
-      endTransaction(origin, trans) match {
-        case Right(request) =>
-          request.sender ! NodeActor.FoundPeers(peers)
-          pendingRequests += (request -> RequestStatus.fulfilled)
-          //TODO continue if already has peers. stop when enough peers.
-        case Left(err) => log.warning(s"Can't report peers found: $err")
-      }
+      reportPeersFound(trans, origin, peers)
     case PeersNotFound(trans, origin, token, nodes) =>
-      val result = for {
-        request <- endTransaction(origin, trans).right
-        status <- getRequestStatus(request).right
-      } yield (request, status)
-      result match {
-        case Right((request, status)) => continuePeerSearch(request, status, nodes)
-        case Left(err) => log.warning(s"Can't continue peer search: $err")
-      }
+      peerSearches.continue(trans, origin, nodes)
   }
 
-  def send(remote: InetSocketAddress, message: Message): Unit =
+  private def send(remote: InetSocketAddress, message: Message): Unit =
     udpSender ! SendToNode(message, remote)
 
-  def updateTable(id: NodeId, addr: InetSocketAddress): Unit =
+  private def updateTable(id: NodeId, addr: InetSocketAddress): Unit =
     NodeInfo.parse(id, addr) match {
       case Right(info) => routingTable.add(info)
       case Left(err) => log.warning(s"Couldn't update routing table: $err")
     }
 
-  def startPeerSearch(hash: InfoHash): Unit =
-    routingTable.findClosestNodes(hash).foreach { node =>
-      val request = SearchRequest(hash, sender, now)
-      beginTransaction(request, node)
-      pendingRequests += (request -> RequestStatus.fresh)
+  private def reportPeersFound(trans: TransactionId, origin: NodeId, peers: Seq[PeerInfo]): Unit =
+    peerSearches.remember(origin, trans) match {
+      case Right(search) =>
+        peerMap.add(search.target, peers.toSet)
+        search.requester ! NodeActor.FoundPeers(search.target, peers)
+      case Left(err) => log.warning(s"Can't report peers found: $err")
     }
 
-  def continuePeerSearch(request: SearchRequest, status: RequestStatus, newNodes: Seq[NodeInfo]): Unit =
-    newNodes.filter(_.id.distance(request.target) < status.closestSoFar).toList match {
-      case Nil =>
-        log.warning(s"Can't continue peer search for ${request.target}: New nodes aren't closer than before")
-      case closerNodes =>
-        closerNodes.foreach { beginTransaction(request, _) } //TODO limit pending transactions, hold new closer nodes.
-        val newClosest = closerNodes.map(_.id.distance(request.target)).min
-        pendingRequests += (request -> status.updated(newClosest))
+  private def answerFindNode(remote: InetSocketAddress, trans: TransactionId, target: NodeId): Unit = {
+    val nodes = findCloserNodes(target)
+    if (nodes.nonEmpty)
+      send(remote, NodesFound(trans, selfNode, nodes))
+  }
+
+  private def answerGetPeers(remote: InetSocketAddress, trans: TransactionId, hash: InfoHash): Unit = {
+    val token = Token.forIp(remote.getHostName)
+    val peers = peerMap.get(hash)
+    if(peers.nonEmpty)
+      send(remote, PeersFound(trans, selfNode, token, peers.toSeq))
+    else {
+      val nodes = findCloserNodes(hash)
+      if (nodes.nonEmpty)
+        send(remote, PeersNotFound(trans, selfNode, token, nodes))
     }
-
-  def beginTransaction(request: SearchRequest, target: NodeInfo): Unit = {
-    val trans = TransactionId.random
-    send(target.address, GetPeers(trans, selfNode, request.target))
-    pendingTransactions += (Transaction(target.id, trans) -> request)
   }
 
-  def endTransaction(origin: NodeId, trans: TransactionId): Either[String, SearchRequest] = {
-    val transaction = Transaction(origin, trans)
-    val request = pendingTransactions.get(transaction)
-    pendingTransactions -= transaction
-    request.toRight(s"$trans was inactive.")
-  }
+  private def findCloserNodes(target: Id20B): Seq[NodeInfo] =
+    routingTable.findClosestNodes(target)
+      .filter(_.id.distance(target) < selfNode.distance(target))
 
-  def getRequestStatus(request: SearchRequest): Either[String, RequestStatus] =
-    pendingRequests.get(request)
-      .toRight(s"Search request for ${request.target} was inactive.")
-
-  def scheduleCleanup(): Unit =
+  private def scheduleCleanup(): Unit =
     context.system.scheduler.schedule(CleanupInterval, CleanupInterval) {
-      self ! ForgetOldRequests
+      self ! CleanInactiveSearches
     }(context.dispatcher)
 
-  def cleanup(): Unit = {
-    val (active, inactive) = pendingRequests.partition {
-      case (_, status) => status.isActive
-    }
-    pendingRequests = active
-    pendingTransactions = pendingTransactions.filterNot {
-      case (_, request) => inactive contains request
-    }
+
+  trait Searches[A <: Id20B] extends SearchManager[A] {
+
+    def newMessage(newTrans: TransactionId, target: A): Message
+
+    def start(target: A): Unit =
+      super.start(target, sender, routingTable.findClosestNodes(target)){
+        (trans, nextNode, _) => send(nextNode.address, newMessage(trans, target))
+      }
+
+    def continue(trans: TransactionId, origin: NodeId, newNodes: Seq[NodeInfo]): Unit =
+      super.continue(trans, origin, newNodes){
+        (newTrans, nextNode, target) => send(nextNode.address, newMessage(newTrans, target))
+      }.left.foreach { err =>
+        log.warning(s"Can't continue search: $err")
+      }
+
+  }
+  case object NodeSearches extends Searches[NodeId] {
+    override def newMessage(newTrans: TransactionId, target: NodeId): Message =
+      FindNode(newTrans, selfNode, target)
+  }
+  case object PeersSearches extends Searches[InfoHash] {
+    override def newMessage(newTrans: TransactionId, target: InfoHash): Message =
+      GetPeers(newTrans, selfNode, target)
   }
 
 }

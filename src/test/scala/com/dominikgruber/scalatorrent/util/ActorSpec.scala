@@ -2,25 +2,27 @@ package com.dominikgruber.scalatorrent.util
 
 import akka.actor.{ActorRef, ActorSystem, Terminated}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.scalatest.mockito.MockitoSugar
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 
 abstract class ActorSpec extends TestKit(ActorSystem())
   with ImplicitSender with WordSpecLike with Matchers
-  with BeforeAndAfterAll with MockitoSugar {
+  with BeforeAndAfterAll with MockFactory {
 
-  override def afterAll {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
-  def syncStop(actor: ActorRef) {
+  def syncStop(actor: ActorRef): Unit = {
     watch(actor)
     system.stop(actor)
-    expectMsgPF(10 seconds){
-      case Terminated(`actor`) =>
+    fishForMessage(10 seconds){
+      case Terminated(`actor`) => true
+      case _ => false
     }
     unwatch(actor)
   }

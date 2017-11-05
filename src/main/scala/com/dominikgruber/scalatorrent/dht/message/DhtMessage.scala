@@ -135,6 +135,9 @@ object DhtMessage {
     *   Tokens up to 10 minutes old are accepted.
     */
   case class Token(value: String)
+  object Token {
+    def forIp(ip: String): Token = Token(ip) //TODO hash with time + secret
+  }
 
   sealed trait Message {
     val trans: TransactionId
