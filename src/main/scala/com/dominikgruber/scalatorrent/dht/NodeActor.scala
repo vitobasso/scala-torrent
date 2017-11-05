@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.dominikgruber.scalatorrent.SelfInfo
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
-import com.dominikgruber.scalatorrent.dht.DhtNodeActor._
+import com.dominikgruber.scalatorrent.dht.NodeActor._
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
 
 import scala.concurrent.duration._
@@ -14,7 +14,7 @@ import scala.language.postfixOps
 /**
   * http://www.bittorrent.org/beps/bep_0005.html
   */
-case object DhtNodeActor {
+case object NodeActor {
 
   val RequestTTL: FiniteDuration = 1 minute
   val CleanupInterval: FiniteDuration = 5 minutes
@@ -82,7 +82,7 @@ case object DhtNodeActor {
 
 }
 
-case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with ActorLogging {
+case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with ActorLogging {
 
   val routingTable = RoutingTable(SelfInfo.nodeId)
   val peersMap: Map[InfoHash, Set[PeerInfo]] = Map.empty
@@ -135,7 +135,7 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
     case PeersFound(trans, origin, token, peers) =>
       endTransaction(origin, trans) match {
         case Right(request) =>
-          request.sender ! DhtNodeActor.FoundPeers(peers)
+          request.sender ! NodeActor.FoundPeers(peers)
           pendingRequests += (request -> RequestStatus.fulfilled)
           //TODO continue if already has peers. stop when enough peers.
         case Left(err) => log.warning(s"Can't report peers found: $err")
