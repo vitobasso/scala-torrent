@@ -14,7 +14,6 @@ import scala.language.{implicitConversions, postfixOps}
   * @param me: id of the node owning this table
   */
 case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
-  def isPowerOf2(i: Int): Boolean = (i & -i) == i
   require(isPowerOf2(k))
 
   private var buckets: SortedMap[BigInt, Bucket] = SortedMap (
@@ -136,7 +135,7 @@ object RoutingTable {
     Ordering.by(ranking)
   }
 
-  case class NodeEntry(info: NodeInfo, quality: Quality, lastAcive: Long)
+  case class NodeEntry(info: NodeInfo, quality: Quality, lastAcive: Long) //TODO lastActive implies quality
   object NodeEntry {
     def fresh(info: NodeInfo) = NodeEntry(info, Good, System.currentTimeMillis)
   }
@@ -154,6 +153,8 @@ object RoutingTable {
   }
 
   implicit def toBigInt(id: Id20B): BigInt = id.toBigInt
+
+  def isPowerOf2(i: Int): Boolean = (i & -i) == i
 
   /*
     routing table
