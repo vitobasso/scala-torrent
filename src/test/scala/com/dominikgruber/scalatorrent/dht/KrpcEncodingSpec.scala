@@ -1,6 +1,7 @@
 package com.dominikgruber.scalatorrent.dht
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage._
+import com.dominikgruber.scalatorrent.dht.message.{DhtMessage, KrpcEncoding}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
 /**

@@ -4,7 +4,8 @@ import com.dominikgruber.scalatorrent.dht.RoutingTable._
 import com.dominikgruber.scalatorrent.util.UnitSpec
 import org.scalatest.PrivateMethodTester
 import Util._
-import com.dominikgruber.scalatorrent.dht.DhtMessage.{NodeId, NodeInfo}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{NodeId, NodeInfo}
 
 import scala.collection.SortedMap
 

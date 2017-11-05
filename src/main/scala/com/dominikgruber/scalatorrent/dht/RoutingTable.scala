@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent.dht
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage.{Id20B, NodeId, NodeInfo}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{Id20B, NodeId, NodeInfo}
 import com.dominikgruber.scalatorrent.dht.RoutingTable.{Bucket, NodeEntry, _}
 
 import scala.collection.SortedMap

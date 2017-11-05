@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage.NodeId
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.NodeId
 
 import scala.util.Random
 
