@@ -1,9 +1,9 @@
-package com.dominikgruber.scalatorrent.dht
+package com.dominikgruber.scalatorrent.dht.message
 
 import com.dominikgruber.scalatorrent.bencode.BencodeParser.{NoSuccess, Success}
 import com.dominikgruber.scalatorrent.bencode.{BencodeEncoder, BencodeParser}
-import com.dominikgruber.scalatorrent.dht.DhtMessage._
-import com.dominikgruber.scalatorrent.dht.DhtBasicEncoding.{parseNodeInfos, serializeNodeInfo, parsePeerInfo, serializePeerInfo}
+import com.dominikgruber.scalatorrent.dht.message.DhtBasicEncoding.{parseNodeInfos, parsePeerInfo, serializeNodeInfo, serializePeerInfo}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 
 import scala.reflect.ClassTag
 
@@ -82,7 +82,7 @@ object KrpcEncoding {
 
 }
 
-import com.dominikgruber.scalatorrent.dht.KrpcEncoding.MapOps
+import com.dominikgruber.scalatorrent.dht.message.KrpcEncoding.MapOps
 
 sealed trait KRPCCodec[T <: DhtMessage.Message] {
   def encode(msg: T): Map[String, Any]

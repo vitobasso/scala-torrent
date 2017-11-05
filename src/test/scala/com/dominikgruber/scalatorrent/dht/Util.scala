@@ -2,7 +2,7 @@ package com.dominikgruber.scalatorrent.dht
 
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage.{InfoHash, NodeId}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{InfoHash, NodeId}
 import com.dominikgruber.scalatorrent.util.ByteUtil.{Bytes, bytes}
 
 object Util {

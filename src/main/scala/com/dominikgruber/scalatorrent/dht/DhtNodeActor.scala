@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.dominikgruber.scalatorrent.SelfInfo
-import com.dominikgruber.scalatorrent.dht.DhtMessage._
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import com.dominikgruber.scalatorrent.dht.DhtNodeActor._
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
 
@@ -168,8 +168,8 @@ case class DhtNodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor wit
     }
 
   def continuePeerSearch(request: SearchRequest, status: RequestStatus, newNodes: Seq[NodeInfo]): Unit =
-    newNodes.filter(_.id.distance(request.target) < status.closestSoFar) match {
-      case Seq.empty =>
+    newNodes.filter(_.id.distance(request.target) < status.closestSoFar).toList match {
+      case Nil =>
         log.warning(s"Can't continue peer search for ${request.target}: New nodes aren't closer than before")
       case closerNodes =>
         closerNodes.foreach { beginTransaction(request, _) } //TODO limit pending transactions, hold new closer nodes.

@@ -1,4 +1,4 @@
-package com.dominikgruber.scalatorrent.dht
+package com.dominikgruber.scalatorrent.dht.message
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer

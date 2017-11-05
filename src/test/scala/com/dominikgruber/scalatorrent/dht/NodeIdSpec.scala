@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent.dht
 
-import com.dominikgruber.scalatorrent.dht.DhtMessage.NodeId
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.NodeId
 import com.dominikgruber.scalatorrent.dht.Util.node
 import com.dominikgruber.scalatorrent.util.UnitSpec
 

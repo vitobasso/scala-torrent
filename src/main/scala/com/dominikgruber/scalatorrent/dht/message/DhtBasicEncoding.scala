@@ -1,15 +1,14 @@
-package com.dominikgruber.scalatorrent.dht
-
+package com.dominikgruber.scalatorrent.dht.message
 
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
 import cats.instances.either._
 import cats.instances.list._
 import cats.syntax.traverse._
-import com.dominikgruber.scalatorrent.dht.DhtMessage._
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import com.dominikgruber.scalatorrent.util.SBinaryFormats._
-import sbinary.{Reads, Writes}
 import sbinary.Operations.{fromByteArray, toByteArray}
+import sbinary.{Reads, Writes}
 import sbinary.DefaultProtocol._ // implicit Formats needed for to/fromBytes
 
 object DhtBasicEncoding {
