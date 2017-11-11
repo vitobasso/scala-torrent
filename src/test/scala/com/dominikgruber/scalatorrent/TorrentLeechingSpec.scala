@@ -32,8 +32,8 @@ class TorrentLeechingSpec extends TorrentSpec {
       val peer2 = Peer(None, "ip2", 0)
       torrent ! Mocks.trackerResponse(List(peer1, peer2))
 
-      coordinator expectMsg ConnectToPeer(peer1, meta)
-      coordinator expectMsg ConnectToPeer(peer2, meta)
+      coordinator expectMsg ConnectToPeer(peer1.address, meta)
+      coordinator expectMsg ConnectToPeer(peer2.address, meta)
     }
 
     "send Interested when a peer has new pieces" in {

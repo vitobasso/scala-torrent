@@ -20,7 +20,7 @@ object Coordinator {
   case class AddTorrentFile(file: String)
   case class TorrentAddedSuccessfully(file: String, torrent: ActorRef)
   case class TorrentFileInvalid(file: String, message: String)
-  case class ConnectToPeer(peer: Peer, meta: MetaInfo)
+  case class ConnectToPeer(address: PeerAddress, meta: MetaInfo)
   case class PeerConnected(peerConn: ActorRef, address: PeerAddress)
   case class IdentifyTorrent(infoHash: String)
 }
@@ -87,14 +87,14 @@ class Coordinator extends Actor with ActorLogging with Asking {
     context.actorOf(props, "connection-manager")
   }
 
-  private def createConnRequestTempActor(peer: Peer, meta: MetaInfo, torrent: ActorRef): ActorRef = {
+  private def createConnRequestTempActor(peer: PeerAddress, meta: MetaInfo, torrent: ActorRef): ActorRef = {
     val props = Props(new PeerConnRequestActor(peer, meta, torrent))
-    context.actorOf(props, s"temp-peer-connection-request-${peer.address}-${meta.hash}")
+    context.actorOf(props, s"temp-peer-connection-request-$peer-${meta.hash}")
   }
 
-  class PeerConnRequestActor(peer: Peer, meta: MetaInfo, torrent: ActorRef)
+  class PeerConnRequestActor(peer: PeerAddress, meta: MetaInfo, torrent: ActorRef)
     extends Actor with ActorLogging with ExtraPattern {
-    connManager ! CreateConnection(peer.inetSocketAddress)
+    connManager ! CreateConnection(peer)
     override def receive: Receive = {
       case PeerConnected(peerConn, address) => // outbound, from ConnectionManager
         val handshakeActor = createOutboundHandshakeActor(peerConn, address, meta, torrent)

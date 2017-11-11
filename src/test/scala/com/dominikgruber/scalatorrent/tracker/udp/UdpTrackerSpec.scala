@@ -18,7 +18,7 @@ class UdpTrackerSpec extends ActorSpec {
   val udpManager = TestProbe("udp-manager")
   val udpConn = TestProbe("udp-connection")
   val meta = Mocks.fileMetaInfo()
-  val peerAddr: InetSocketAddress = Mocks.peer.inetSocketAddress
+  val peerAddr: InetSocketAddress = Mocks.peer.address
   val tracker: ActorRef = {
     def createActor = new UdpTracker(meta, peerAddr) {
       override val udpManager: ActorRef = outer.udpManager.ref
