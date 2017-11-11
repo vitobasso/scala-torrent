@@ -3,9 +3,13 @@ package com.dominikgruber.scalatorrent.tracker
 import java.net.{InetAddress, InetSocketAddress}
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
-object PeerAddress {
-  implicit def fromInetSocketAddress(inetAddress: InetSocketAddress) =
+import scala.language.implicitConversions
+
+object PeerAddress { //TODO deduplicate with dht.message.PeerInfo
+  implicit def fromInetAddress(inetAddress: InetSocketAddress) =
     PeerAddress(inetAddress.getHostName, inetAddress.getPort)
+  implicit def toInetAddress(address: PeerAddress): InetSocketAddress =
+    new InetSocketAddress(address.ip, address.port)
 }
 case class PeerAddress(ip: String, port: Int){
   override def toString: String = s"$ip:$port"
@@ -34,7 +38,6 @@ case class Peer
 
 ) {
   val address = PeerAddress(ip, port)
-  lazy val inetSocketAddress = new InetSocketAddress(ip, port)
 }
 
 object Peer {

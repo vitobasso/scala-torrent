@@ -27,7 +27,7 @@ class TorrentStoringNewSpec extends TorrentSpec {
       torrent ! Status(BitSet.empty)
 
       torrent ! Mocks.trackerResponse()
-      coordinator expectMsg ConnectToPeer(Mocks.peer, meta)
+      coordinator expectMsg ConnectToPeer(Mocks.peer.address, meta)
 
       torrent ! ReportPlease
       expectMsg(ProgressReport(0, Seq(0, 0, 0, 0)))

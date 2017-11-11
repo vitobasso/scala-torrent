@@ -27,7 +27,7 @@ class TorrentRestoringProgressSpec extends TorrentSpec {
       torrent ! Status(BitSet(1, 2))
 
       torrent ! Mocks.trackerResponse()
-      coordinator expectMsg ConnectToPeer(Mocks.peer, meta)
+      coordinator expectMsg ConnectToPeer(Mocks.peer.address, meta)
 
       torrent ! ReportPlease
       expectMsg(ProgressReport(2/3.0, Seq(0, 1, 1)))

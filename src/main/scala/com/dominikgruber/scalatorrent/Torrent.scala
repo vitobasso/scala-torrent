@@ -14,7 +14,7 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.Se
 import com.dominikgruber.scalatorrent.peerwireprotocol.{PeerSharing, TransferState}
 import com.dominikgruber.scalatorrent.storage.Storage
 import com.dominikgruber.scalatorrent.storage.Storage._
-import com.dominikgruber.scalatorrent.tracker.Peer
+import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker._
 import com.dominikgruber.scalatorrent.tracker.http._
 import com.dominikgruber.scalatorrent.tracker.udp.UdpTracker
@@ -62,7 +62,8 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   def findingPeers: Receive = {
     case s: TrackerResponseWithSuccess => // from Tracker
       log.debug(s"[$name] Request to Tracker successful: $s")
-      connectToPeers(s.peers)
+      val uniqueAddresses: Set[PeerAddress] = s.peers.map(_.address).toSet
+      connectToPeers(uniqueAddresses)
       context become sharing
 
     case f: TrackerResponseWithFailure =>
@@ -92,7 +93,7 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
         .foreach { completePiece =>
           if(checksum(piece.index, completePiece))
             storage ! Store(piece.index, completePiece)
-          else{
+          else {
             log.warning(s"Checksum failed for piece ${piece.index}.")
             transferState.resetPiece(piece.index)
           }
@@ -111,14 +112,10 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     }
   }
 
-  def connectToPeers(peers: List[Peer]): Unit = {
-    val unique = peers.groupBy(_.address).map{
-      case (_, duplicates) => duplicates.head
-    }
-    unique.foreach{
+  def connectToPeers(peers: Set[PeerAddress]): Unit =
+    peers.foreach{
       peer => coordinator ! ConnectToPeer(peer, meta)
     }
-  }
 
   private def createPeerSharingActor(peerConn: ActorRef, peer: Peer) = {
     val props = Props(classOf[PeerSharing], peerConn, peer, meta)
