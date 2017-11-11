@@ -16,18 +16,26 @@ class SearchManager[A <: Id20B] {
 
   /**
     * [[Transaction]]s pending response from remote nodes
-    * Multiple transactions may belong to one [[Search]]
+    * Multiple transactions may belong to each [[Search]]
     */
   private var pending: Map[Transaction, Search[A]] = Map.empty
 
-
   type Send = (TransactionId, NodeInfo, A) => Unit
-  def start(target: A, requestor: ActorRef, startingNodes: Seq[NodeInfo])(send: Send): Unit = {
-    val search = Search(target, requestor)
+
+  /**
+    * Starts the search by sending queries to given nodes.
+    * Keeps track of this search for when handling the response later.
+    */
+  def start(target: A, requester: ActorRef, startingNodes: Seq[NodeInfo])(send: Send): Unit = {
+    val search = Search(target, requester)
     searches += search
     startingNodes.foreach { sendAndWait(search, send) }
   }
 
+  /**
+    * Validates that we have a pending query to this origin with this [[TransactionId]].
+    * Sends new queries to the newly found nodes to continue the search.
+    */
   def continue(trans: TransactionId, origin: NodeId, nodes: Seq[NodeInfo])(send: Send): Either[String, Unit] =
     for {
       search <- remember(origin, trans).right
@@ -40,6 +48,10 @@ class SearchManager[A <: Id20B] {
     pending += (Transaction(nextNode.id, trans) -> search)
   }
 
+  /**
+    * Validates that we have a pending query to this origin with this [[TransactionId]].
+    * @return return the corresponding search state.
+    */
   def remember(origin: NodeId, trans: TransactionId): Either[String, Search[A]] = {
     val transaction = Transaction(origin, trans)
     val search = pending.get(transaction)

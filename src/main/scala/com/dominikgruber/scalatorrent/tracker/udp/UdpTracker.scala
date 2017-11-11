@@ -43,7 +43,7 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
       context.become(disconnecting)
   }
 
-  def expectingConnectResponse(requestor: ActorRef, udpConn: ActorRef, trans: TransactionId, dl: Long, ul: Long): Receive = {
+  def expectingConnectResponse(requester: ActorRef, udpConn: ActorRef, trans: TransactionId, dl: Long, ul: Long): Receive = {
     case UdpConnected.Received(data) =>
       val torrentHash = InfoHash.validate(meta.infoHash.toArray)
       val peerId = PeerId.validate(SelfInfo.selfPeerId.getBytes(ISO_8859_1))
@@ -61,10 +61,10 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
           log.debug(s"Received $a")
           //TODO validate transaction
           val peers: List[Peer] = a.peers.map(p => Peer(None, p.ip, p.port)).toList
-          requestor ! TrackerResponseWithSuccess(a.interval, None, None, a.seeders, a.leechers, peers, None)
+          requester ! TrackerResponseWithSuccess(a.interval, None, None, a.seeders, a.leechers, peers, None)
         case Failure(t) =>
           log.error(t, "Request to tracker failed")
-          requestor ! TrackerConnectionFailed(t.getMessage)
+          requester ! TrackerConnectionFailed(t.getMessage)
       }
   }
 
