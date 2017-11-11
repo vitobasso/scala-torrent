@@ -76,8 +76,8 @@ case object NodeActor {
   */
 case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with ActorLogging {
 
-  val routingTable = RoutingTable(SelfInfo.nodeId)
-  val peerMap = PeerMap()
+  val routingTable = RoutingTable(SelfInfo.nodeId) //TODO persist
+  val peerMap = PeerMap() //TODO persist
 
   val peerSearches = PeersSearches
   val nodeSearches = NodeSearches
