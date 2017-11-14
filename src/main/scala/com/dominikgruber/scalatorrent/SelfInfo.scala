@@ -7,7 +7,7 @@ import scala.util.Random
 object SelfInfo {
 
   val pstr = "BitTorrent protocol"
-  val extension = Vector[Byte](0, 0, 0, 0, 0, 0, 0, 0)
+  val extension = Vector[Byte](0, 0, 0, 0, 0, 0, 0, 1)
 
   /**
     * 20-byte string used as a unique ID for the client.
