@@ -55,9 +55,8 @@ class Coordinator extends Actor with ActorLogging with Asking {
 
   private def addTorrentFile(file: String): Unit = {
     try {
-      val name = file.split('/').last.replace(".torrent", "")
       val meta = MetaInfo(new File(file))
-      val torrentActor: ActorRef = createTorrentActor(name, meta)
+      val torrentActor: ActorRef = createTorrentActor(meta)
       torrents(meta.hash) = (torrentActor, meta)
       sender ! TorrentAddedSuccessfully(file, torrentActor)
     } catch {
@@ -67,8 +66,8 @@ class Coordinator extends Actor with ActorLogging with Asking {
     }
   }
 
-  private def createTorrentActor(name: String, meta: MetaInfo) = {
-    val torrentProps = Props(classOf[Torrent], name, meta, self, portIn)
+  private def createTorrentActor(meta: MetaInfo) = {
+    val torrentProps = Props(classOf[Torrent], meta, self, portIn)
     context.actorOf(torrentProps, "torrent-" + meta.hash)
   }
 

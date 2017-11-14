@@ -9,13 +9,13 @@ trait TorrentSpec extends ActorSpec {
   outer =>
 
   def meta: MetaInfo
-  val tracker = TestProbe("tracker")
+  val peerFinder = TestProbe("peer-finder")
   val storage = TestProbe("storage")
   val coordinator = TestProbe("coordinator")
 
   lazy val torrent: ActorRef = {
-    def createActor = new Torrent("", meta, coordinator.ref, 0) {
-      override lazy val trackers: Seq[ActorRef] = Seq(outer.tracker.ref)
+    def createActor = new Torrent(meta, coordinator.ref, 0) {
+      override lazy val peerFinder: ActorRef = outer.peerFinder.ref
       override lazy val storage: ActorRef = outer.storage.ref
       override val checksum: PieceChecksum = Mocks.checksum
     }
