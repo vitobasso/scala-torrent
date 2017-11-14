@@ -1,6 +1,5 @@
 package com.dominikgruber.scalatorrent
 
-import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -25,9 +24,6 @@ class TorrentStoringNewSpec extends TorrentSpec {
       torrent //trigger actor creation (this is a lazy val)
       storage.expectMsg(StatusPlease)
       torrent ! Status(BitSet.empty)
-
-      torrent ! Mocks.trackerResponse()
-      coordinator expectMsg ConnectToPeer(Mocks.peer.address, meta)
 
       torrent ! ReportPlease
       expectMsg(ProgressReport(0, Seq(0, 0, 0, 0)))

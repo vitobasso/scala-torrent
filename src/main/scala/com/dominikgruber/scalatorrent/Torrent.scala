@@ -1,10 +1,8 @@
 package com.dominikgruber.scalatorrent
 
-import java.net.InetSocketAddress
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
-import com.dominikgruber.scalatorrent.SelfInfo._
+import com.dominikgruber.scalatorrent.PeerFinder.{FindPeers, PeersFound}
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, PieceChecksum}
@@ -15,12 +13,8 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.{PeerSharing, TransferSta
 import com.dominikgruber.scalatorrent.storage.Storage
 import com.dominikgruber.scalatorrent.storage.Storage._
 import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
-import com.dominikgruber.scalatorrent.tracker.http.HttpTracker._
-import com.dominikgruber.scalatorrent.tracker.http._
-import com.dominikgruber.scalatorrent.tracker.udp.UdpTracker
 
 import scala.collection.BitSet
-import scala.util.matching.Regex
 
 object Torrent {
   /**
@@ -34,11 +28,11 @@ object Torrent {
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
 }
 
-class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
+class Torrent(meta: MetaInfo, coordinator: ActorRef, portIn: Int)
   extends Actor with ActorLogging {
 
   //lazy prevents unwanted init before overwrite from test
-  lazy val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
+  lazy val peerFinder: ActorRef = createPeerFinderActor()
   lazy val storage: ActorRef = createStorageActor()
   val transferState = TransferState(meta)
   val checksum = PieceChecksum(meta)
@@ -53,27 +47,15 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     case Status(piecesWeHave) =>
       log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
       piecesWeHave foreach transferState.markPieceCompleted
-      trackers.foreach { _ ! SendEventStarted(0, 0) }
-      context become findingPeers
+      peerFinder ! FindPeers
+      context become sharing
     case Complete =>
       //TODO seed
   }
 
-  def findingPeers: Receive = {
-    case s: TrackerResponseWithSuccess => // from Tracker
-      log.debug(s"[$name] Request to Tracker successful: $s")
-      val uniqueAddresses: Set[PeerAddress] = s.peers.map(_.address).toSet
-      connectToPeers(uniqueAddresses)
-      context become sharing
-
-    case f: TrackerResponseWithFailure =>
-      log.warning(s"[$name] Request to Tracker failed: ${f.reason}")
-
-    case TrackerConnectionFailed(msg) =>
-      log.warning(s"[$name] Connection to Tracker failed: $msg")
-  }
-
   def sharing: Receive = {
+
+    case PeersFound(peers) => connectToPeers(peers)
 
     case PeerReady(peerConn, peer) => // from HandshakeActor
       val peerSharing = createPeerSharingActor(peerConn, peer)
@@ -117,32 +99,19 @@ class Torrent(name: String, meta: MetaInfo, coordinator: ActorRef, portIn: Int)
       peer => coordinator ! ConnectToPeer(peer, meta)
     }
 
+  private def createPeerFinderActor() = {
+    val props = Props(classOf[PeerFinder], meta, portIn, self)
+    context.actorOf(props, s"peer-finder-${meta.hash}")
+  }
+
   private def createPeerSharingActor(peerConn: ActorRef, peer: Peer) = {
     val props = Props(classOf[PeerSharing], peerConn, peer, meta)
     context.actorOf(props, s"peer-sharing-${peer.address}")
-  }
-
-  private def createTrackerActor(peerUrl: String): Option[ActorRef] = {
-    val url: Regex = """(\w+)://(.*):(\d+)""".r
-    val props = peerUrl match {
-      case url("http", _, _) =>
-        Some(Props(classOf[HttpTracker], meta, selfPeerId, portIn)) //TODO rm selfPeerId param
-      case url("udp", host, port) =>
-        Some(Props(classOf[UdpTracker], meta.fileInfo, new InetSocketAddress(host, port.toInt)))
-      case _ => None
-    }
-    val escapedUrl = peerUrl.replaceAll("/", "_")
-    props.map{
-      context.actorOf(_, s"tracker-$escapedUrl-${meta.hash}")
-    }
   }
 
   private def createStorageActor(): ActorRef = {
     val props = Props(classOf[Storage], meta.fileInfo)
     context.actorOf(props, s"storage-${meta.hash}")
   }
-
-  private def trackerAddrs: Seq[String] =
-    meta.announceList.map { _.flatten }.getOrElse(Seq(meta.announce))
 
 }

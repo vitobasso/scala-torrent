@@ -2,7 +2,7 @@ package com.dominikgruber.scalatorrent.dht
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.SelfInfo
 import com.dominikgruber.scalatorrent.dht.NodeActor._
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
@@ -74,16 +74,19 @@ case object NodeActor {
 /**
   * A node in a DHT network
   */
-case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with ActorLogging {
+case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
 
-  val routingTable = RoutingTable(SelfInfo.nodeId) //TODO persist
+  val routingTable = RoutingTable(selfNode) //TODO persist
   val peerMap = PeerMap() //TODO persist
+  lazy val udp: ActorRef = createUdpSocketActor //lazy prevents init before overwrite from test
 
   val peerSearches = PeersSearches
   val nodeSearches = NodeSearches
 
   override def preStart(): Unit = {
     scheduleCleanup()
+    if(routingTable.nBucketsUsed == 1)
+      self ! SearchNode(selfNode)
   }
 
   override def receive: Receive = {
@@ -126,7 +129,7 @@ case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with A
   }
 
   private def send(remote: InetSocketAddress, message: Message): Unit =
-    udpSender ! SendToNode(message, remote)
+    udp ! SendToNode(message, remote)
 
   private def updateTable(id: NodeId, addr: InetSocketAddress): Unit =
     NodeInfo.parse(id, addr) match {
@@ -194,6 +197,11 @@ case class NodeActor(selfNode: NodeId, udpSender: ActorRef) extends Actor with A
   case object PeersSearches extends Searches[InfoHash] {
     override def newMessage(newTrans: TransactionId, target: InfoHash): Message =
       GetPeers(newTrans, selfNode, target)
+  }
+
+  private def createUdpSocketActor: ActorRef = {
+    val props = Props(classOf[UdpSocket], self)
+    context.actorOf(props, s"udp-socket-${SelfInfo.nodeId}")
   }
 
 }

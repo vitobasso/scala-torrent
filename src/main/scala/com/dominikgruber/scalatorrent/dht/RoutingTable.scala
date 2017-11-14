@@ -20,6 +20,8 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
     Min -> Bucket(Map.empty, Min, Max)
   )
 
+  def nBucketsUsed: Int = buckets.size
+
   /**
     * Adds a node to the table; or
     * If already there, update quality to Good & lastActive to now

@@ -1,13 +1,10 @@
 package com.dominikgruber.scalatorrent
 
-import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.message._
 import com.dominikgruber.scalatorrent.storage.Storage.Status
-import com.dominikgruber.scalatorrent.tracker.Peer
-import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.SendEventStarted
 import com.dominikgruber.scalatorrent.util.Mocks
 
 import scala.collection.BitSet
@@ -22,19 +19,7 @@ class TorrentLeechingSpec extends TorrentSpec {
 
   "a Torrent actor, when downloading" must {
 
-    "say hi to tracker" in {
-      torrent ! Status(BitSet.empty)
-      tracker expectMsg SendEventStarted(0, 0)
-    }
-
-    "create peer connections" in {
-      val peer1 = Peer(None, "ip1", 0)
-      val peer2 = Peer(None, "ip2", 0)
-      torrent ! Mocks.trackerResponse(List(peer1, peer2))
-
-      coordinator expectMsg ConnectToPeer(peer1.address, meta)
-      coordinator expectMsg ConnectToPeer(peer2.address, meta)
-    }
+    torrent ! Status(BitSet.empty) //trigger initialization & become "sharing"
 
     "send Interested when a peer has new pieces" in {
       torrent ! AreWeInterested(BitSet(0))
@@ -45,7 +30,7 @@ class TorrentLeechingSpec extends TorrentSpec {
     "send 5 Requests in response to MoreRequests" in {
       torrent ! NextRequest(allAvailable)
       for(_ <- 1 to 5) //5 = TransferState.SimultaneousRequests
-        ObservedRequests.expectRequest
+        ObservedRequests.expectRequest()
       expectNoMsg()
     }
 
@@ -78,7 +63,7 @@ class TorrentLeechingSpec extends TorrentSpec {
       val firstRequest = ObservedRequests.received.head
       val piece = Piece(firstRequest.index, firstRequest.begin, Vector.empty)
       torrent ! ReceivedPiece(piece, allAvailable)
-      ObservedRequests.expectRequest
+      ObservedRequests.expectRequest()
       expectNoMsg()
     }
 
@@ -86,7 +71,7 @@ class TorrentLeechingSpec extends TorrentSpec {
       val secondRequest = ObservedRequests.received(1)
       val piece = Piece(secondRequest.index, secondRequest.begin, Vector.empty)
       torrent ! ReceivedPiece(piece, allAvailable)
-      ObservedRequests.expectRequest
+      ObservedRequests.expectRequest()
       expectNoMsg()
 
       val pieceWeAlreadyHave = secondRequest.index
@@ -97,7 +82,7 @@ class TorrentLeechingSpec extends TorrentSpec {
     object ObservedRequests {
       var received = Seq.empty[Request]
 
-      def expectRequest: Unit = {
+      def expectRequest(): Unit = {
         val SendToPeer(msg) = expectMsgType[SendToPeer]
         msg shouldBe a[Request]
         ObservedRequests.received = ObservedRequests.received :+ msg.asInstanceOf[Request]

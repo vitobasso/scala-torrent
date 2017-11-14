@@ -24,7 +24,7 @@ case class UdpSocket(listener: ActorRef) extends Actor with ActorLogging {
     udpManager ! Bind(self, new InetSocketAddress("localhost", 0))
   }
 
-  def receive = {
+  def receive: Receive = {
     case Bound(local) =>
       context.become(ready(sender()))
   }
