@@ -1,6 +1,5 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol.message
 
-import com.dominikgruber.scalatorrent.dht.message.Port
 import com.dominikgruber.scalatorrent.util.UnitSpec
 
 class PortSpec extends UnitSpec  {
