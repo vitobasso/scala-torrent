@@ -3,7 +3,6 @@ package com.dominikgruber.scalatorrent.peerwireprotocol.message
 import java.nio.ByteOrder
 
 import akka.util.ByteStringBuilder
-import com.dominikgruber.scalatorrent.dht.message.Port
 
 /**
  * All of the messages besides the Handshake take the form of
