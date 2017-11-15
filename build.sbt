@@ -2,8 +2,6 @@ name := "scala-torrent"
 
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.11.4" //TODO 2.12
-
 libraryDependencies ++= {
   val akkaV = "2.5.4"
   val scalaMockV = "3.6.0"
@@ -19,12 +17,22 @@ libraryDependencies ++= {
     "org.scala-sbt" %% "sbinary" % "0.4.4",
     "org.typelevel" %% "cats-core" % "0.9.0",
     "com.chuusai" %% "shapeless" % "2.3.2",
-    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
-    "org.scalatest" %% "scalatest" % "3.0.4" % Test,
-    "org.scalamock" %% "scalamock-core" % scalaMockV % Test,
-    "org.scalamock" %% "scalamock-scalatest-support" % scalaMockV % Test,
-    "org.mockito" % "mockito-all" % "1.10.19" % Test
+    "com.typesafe.akka" %% "akka-testkit" % akkaV % "it,test",
+    "org.scalatest" %% "scalatest" % "3.0.4" % "it,test",
+    "org.scalamock" %% "scalamock-core" % scalaMockV % "it,test",
+    "org.scalamock" %% "scalamock-scalatest-support" % scalaMockV % "it,test",
+    "org.mockito" % "mockito-all" % "1.10.19" % "it,test"
   )
 }
+
+lazy val commonSettings = Seq(
+  scalaVersion := "2.11.4" //TODO 2.12
+)
+lazy val root = (project in file("."))
+  .configs(IntegrationTest)
+  .settings(
+    commonSettings,
+    Defaults.itSettings
+  )
 
 //testOptions in Test += Tests.Argument("-oS") //stack trace verbosity (in tests)
