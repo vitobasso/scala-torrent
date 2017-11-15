@@ -1,9 +1,8 @@
-package com.dominikgruber.scalatorrent.dht.message
+package com.dominikgruber.scalatorrent.peerwireprotocol.message
 
 import java.nio.ByteBuffer
 
 import akka.util.ByteStringBuilder
-import com.dominikgruber.scalatorrent.peerwireprotocol.message.Message
 
 case class Port(port: Short) extends Message {
 
