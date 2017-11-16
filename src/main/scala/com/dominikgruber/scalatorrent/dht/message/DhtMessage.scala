@@ -9,6 +9,9 @@ import com.dominikgruber.scalatorrent.util.ByteUtil.{Hex, unsignedByte}
 import shapeless.Nat._
 import shapeless.Sized
 import shapeless.syntax.sized._
+import cats.syntax.traverse._
+import cats.instances.either._
+import cats.instances.list._
 
 /**
   * http://www.bittorrent.org/beps/bep_0005.html
@@ -77,15 +80,28 @@ object DhtMessage {
   }
   object Ip {
     def apply(b1: Byte, b2: Byte, b3: Byte, b4: Byte): Ip = {
-      val int: Int = (b1 << 24) | (b2 << 16) | (b3 << 8) | b4
+      val int: Int = (b1 << 24) |
+          0x00FF0000 & (b2 << 16) |
+          0x0000FF00 & (b3 << 8) |
+          0x000000FF & b4
       Ip(int)
     }
     def parse(str: String): Either[String, Ip] =
-      str.split("\\.").map(_.toByte) match {
-        case bytes: Array[Byte] if bytes.length == 4 =>
+      str.split("\\.").toList.traverseU(toByte) match {
+        case Right(bytes) if bytes.length == 4 =>
           Right(Ip(bytes(0), bytes(1), bytes(2), bytes(3)))
-        case _ => Left(s"Failed to parse ip: '$str'")
+        case _ => Left(s"Invalid ip: '$str'")
       }
+    private def toByte(str: String): Either[String, Byte] =
+      try {
+        val int = str.toInt
+        if(isInUnsignedByteRange(int)) Right(int.toByte)
+        else Left(s"Invalid ip: '$int' is outside the unsigned byte range")
+      } catch {
+        case e: NumberFormatException => Left(e.getMessage)
+      }
+    private def isInUnsignedByteRange(value: Int): Boolean =
+      value >= 0 && value < Math.pow(2,8)
   }
 
   case class Port(value: Short) extends AnyVal {
@@ -93,8 +109,10 @@ object DhtMessage {
   }
   object Port {
     def parse(value: Long): Either[String, Port] =
-      if(value.isValidShort) Right(Port(value.toShort))
-      else Left(s"Not a valid port: '$value'")
+      if(isInUnsignedShortRange(value)) Right(Port(value.toShort))
+      else Left(s"Invalid port: '$value' is outside the unsigned short range")
+    private def isInUnsignedShortRange(value: Long): Boolean =
+      value >= 0 && value < Math.pow(2,16)
   }
 
   /**
