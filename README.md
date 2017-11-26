@@ -1,26 +1,31 @@
 scala-torrent
 =============
 
-As a personal challenge I decided to create a [BitTorrent](http://www.bittorrent.com) client in [Scala](http://www.scala-lang.org). I chose this subject for two primary reasons:
+A [BitTorrent](http://www.bittorrent.com) client under development in
+[Scala](http://www.scala-lang.org).
 
-* To explore new topics and problems aside from the iOS and web development projects I'm usually doing
-* To gain more experience with [Akka](http://akka.io), as the subject is a good fit for the [actor model](http://en.wikipedia.org/wiki/Actor_model)
+While looking for a good case to learn [Akka](http://akka.io) I came
+across this project started by [TheDom](https://github.com/TheDom/scala-torrent),
+who did the work from Bencode to Handshakes.
 
-To make things more interesting, I do intend to only use the specification of the protocol and shall not study any existing implementation in any language.
-
-* http://www.bittorrent.org/beps/bep_0003.html
-* http://jonas.nitro.dk/bittorrent/bittorrent-rfc.html
-* https://wiki.theory.org/BitTorrentSpecification
+I've been having fun with it since then. Learned some Akka, networking
+protocols and DHT's. Was able to download a whole movie and watch it :)
 
 ### Progress
 
-* [✔] CLI
-* [✔] Bencode parsing and encoding
-* [✔] Communication with tracker
-* [✔] Modelling and (un)marshalling of the Peer Wire Protocol messages
-* [✔] Connection and handshake with peers
-* [TODO] File exchange
-* [TODO] Actor supervision
-* [TODO] Actor testing
+* [✔] Bencode
+* [✔] Talk with HTTP trackers
+* Peer Wire Protocol
+  * [✔] Message models & encoding
+  * [✔] Handshake
+  * [✔] TCP buffering
+  * [✔] Download
+  * [TODO] Upload
+  * [✔] Pipelining
+  * [TODO] Piece selection strategies
+  * [TODO] Choking
+* [✔] Reconstruct files
+* [✔] Talk with UDP trackers
+* [in progress] Distributed Hash Table (Kademlia)
+* [TODO] Add new torrents via cli
 
-At this point I am not planning on implementing extensions to the protocol such as DHT.
