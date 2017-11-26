@@ -59,6 +59,8 @@ class SearchManager[A <: Id20B] {
     search.toRight(s"Wasn't expecting $transaction.")
   }
 
+  def isInactive: Boolean = pending.isEmpty
+
   def cleanInactive(): Unit = {
     val (active, inactive) = searches.partition { _.isActive }
     searches = active

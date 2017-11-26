@@ -19,8 +19,8 @@ protocols and DHT's. Was able to download a whole movie and watch it :)
   * [✔] Message models & encoding
   * [✔] Handshake
   * [✔] TCP buffering
-  * [✔] Download
-  * [TODO] Upload
+  * [✔] Leeching
+  * [TODO] Seeding
   * [✔] Pipelining
   * [TODO] Piece selection strategies
   * [TODO] Choking

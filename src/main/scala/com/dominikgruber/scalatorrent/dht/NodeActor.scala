@@ -76,6 +76,8 @@ case object NodeActor {
   */
 case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
 
+  println(s"*** NodeActor, constructor")
+
   val routingTable = RoutingTable(selfNode) //TODO persist
   val peerMap = PeerMap() //TODO persist
   lazy val udp: ActorRef = createUdpSocketActor //lazy prevents init before overwrite from test
@@ -84,15 +86,21 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
   val nodeSearches = NodeSearches
 
   override def preStart(): Unit = {
+    println("*** initializing")
+    udp //trigger lazy init
     scheduleCleanup()
-    if(routingTable.nBucketsUsed == 1)
-      self ! SearchNode(selfNode)
+    bootstrap()
   }
 
   override def receive: Receive = {
-    case SearchNode(id) => nodeSearches.start(id)
+    case SearchNode(id) =>
+      println("*** SearchNode")
+      nodeSearches.start(id)
     case SearchPeers(hash) => peerSearches.start(hash)
-    case AddNode(info) => routingTable.add(info)
+    case AddNode(info) =>
+      println(s"*** AddNode $info")
+      routingTable.add(info)
+      bootstrap()
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
       case q: Query =>
         handleQuery(q, remote)
@@ -106,6 +114,7 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     case CleanInactiveSearches =>
       nodeSearches.cleanInactive()
       peerSearches.cleanInactive()
+      bootstrap() //maybe a previous node search timed out, let's try again
   }
 
   private def handleQuery(msg: Query, remote: InetSocketAddress): Unit = msg match {
@@ -121,6 +130,7 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     case Pong(trans, origin) =>
       //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
+      println("*** NodesFound")
       nodeSearches.continue(trans, origin, nodes)
     case PeersFound(trans, origin, token, peers) =>
       reportPeersFound(trans, origin, peers)
@@ -167,20 +177,33 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     routingTable.findClosestNodes(target)
       .filter(_.id.distance(target) < selfNode.distance(target))
 
+  private def bootstrap(): Unit = {
+    val tableIsAlmostEmpty = routingTable.nBucketsUsed == 1
+    val weKnowSomeNodes = routingTable.findClosestNodes(selfNode).nonEmpty
+    val notSearchingYet = nodeSearches.isInactive
+    if (tableIsAlmostEmpty && weKnowSomeNodes && notSearchingYet) {
+      println(s"*** bootstrap")
+      log.info("Performing node search to fill in routing table")
+      self ! SearchNode(selfNode)
+    }
+  }
+
   private def scheduleCleanup(): Unit =
     context.system.scheduler.schedule(CleanupInterval, CleanupInterval) {
       self ! CleanInactiveSearches
     }(context.dispatcher)
 
-
   trait Searches[A <: Id20B] extends SearchManager[A] {
 
     def newMessage(newTrans: TransactionId, target: A): Message
 
-    def start(target: A): Unit =
-      super.start(target, sender, routingTable.findClosestNodes(target)){
+    def start(target: A): Unit = {
+      val nodes = routingTable.findClosestNodes(target)
+      println(s"*** start, nodes: $nodes")
+      super.start(target, sender, nodes){
         (trans, nextNode, _) => send(nextNode.address, newMessage(trans, target))
       }
+    }
 
     def continue(trans: TransactionId, origin: NodeId, newNodes: Seq[NodeInfo]): Unit =
       super.continue(trans, origin, newNodes){
@@ -200,8 +223,9 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
   }
 
   private def createUdpSocketActor: ActorRef = {
-    val props = Props(classOf[UdpSocket], self)
-    context.actorOf(props, s"udp-socket-${SelfInfo.nodeId}")
+    val props = Props(classOf[UdpSocket], self, 50000) //TODO get port from config or dynamically
+    val nodeIdStr = SelfInfo.nodeId.toString.replace("(", ":").replace(" ", ":").replace(")", "")
+    context.actorOf(props, s"udp-socket-$nodeIdStr")
   }
 
 }
