@@ -10,7 +10,7 @@ jonas.nitro.dk/bittorrent/bittorrent-rfc.html
 http://www.kristenwidman.com/blog/71/how-to-write-a-bittorrent-client-part-2/
 
 #bencode
-http://torrenteditor.com/
+https://torrenteditor.online/
 
 #DHT
 http://www.bittorrent.org/beps/bep_0005.html
