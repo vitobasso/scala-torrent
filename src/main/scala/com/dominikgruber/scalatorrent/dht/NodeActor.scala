@@ -83,16 +83,16 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
   override def preStart(): Unit = {
     udp //trigger lazy init
     scheduleCleanup()
-    bootstrap()
+    considerSearchingNewNodes()
   }
 
   override def receive: Receive = {
     case SearchNode(id) =>
       nodeSearches.start(id)
-    case SearchPeers(hash) => peerSearches.start(hash)
+    case SearchPeers(hash) =>
+      peerSearches.start(hash)
     case AddNode(info) =>
       routingTable.add(info)
-      bootstrap()
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
       case q: Query =>
         handleQuery(q, remote)
@@ -106,7 +106,7 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     case CleanInactiveSearches =>
       nodeSearches.cleanInactive()
       peerSearches.cleanInactive()
-      bootstrap() //maybe a previous node search timed out, let's try again
+      considerSearchingNewNodes() //maybe a previous node search timed out, let's try again
   }
 
   private def handleQuery(msg: Query, remote: InetSocketAddress): Unit = msg match {
@@ -168,14 +168,19 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     routingTable.findClosestNodes(target)
       .filter(_.id.distance(target) < selfNode.distance(target))
 
-  private def bootstrap(): Unit = {
+  private def considerSearchingNewNodes(): Unit = {
     val tableIsAlmostEmpty = routingTable.nBucketsUsed == 1
-    val weKnowSomeNodes = routingTable.findClosestNodes(selfNode).nonEmpty
     val notSearchingYet = nodeSearches.isInactive
-    if (tableIsAlmostEmpty && weKnowSomeNodes && notSearchingYet) {
+    if (tableIsAlmostEmpty && notSearchingYet) {
       log.info("Performing node search to fill in routing table")
       self ! SearchNode(selfNode)
     }
+  }
+
+  private def closestNodesOrBootstrap(target: NodeId): Seq[NodeInfo] = {
+    val nodes = routingTable.findClosestNodes(target)
+    if(nodes.nonEmpty) nodes
+    else BootstrapNodes.addresses
   }
 
   private def scheduleCleanup(): Unit =
@@ -188,7 +193,7 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     def newMessage(newTrans: TransactionId, target: A): Message
 
     def start(target: A): Unit = {
-      val nodes = routingTable.findClosestNodes(target)
+      val nodes: Seq[NodeInfo] = routingTable.findClosestNodes(target)
       super.start(target, sender, nodes){
         (trans, nextNode, _) => send(nextNode.address, newMessage(trans, target))
       }
