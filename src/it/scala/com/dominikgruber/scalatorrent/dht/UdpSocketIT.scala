@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets.ISO_8859_1
 
 import akka.actor.{ActorRef, Props}
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
-import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{NodeId, Ping, Pong, TransactionId}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import com.dominikgruber.scalatorrent.util.ActorIT
 import com.dominikgruber.scalatorrent.util.ByteUtil.{Bytes, bytes}
 
@@ -18,15 +18,14 @@ class UdpSocketIT extends ActorIT {
     system.actorOf(Props(f), s"udp-socket-$port")
   }
 
-  val localActor = createUdpActor(50001)
-  val localAddr = new InetSocketAddress("localhost", 50001)
-
-  val localNode = node("01")
+  val localActor: ActorRef = createUdpActor(50001)
+  val localNode: NodeId = node("01")
   val transactionId = TransactionId("t-id")
 
   "Udp actor" should {
 
     "send a msg locally" in {
+      val localAddr = new InetSocketAddress("localhost", 50001)
       val ping = Ping(transactionId, localNode)
       localActor ! SendToNode(ping, localAddr)
 
@@ -37,14 +36,13 @@ class UdpSocketIT extends ActorIT {
     }
 
     "send a msg remotely" in {
-//      val remote = new InetSocketAddress("62.138.0.158", 6969)
-//      val remote = new InetSocketAddress("87.233.192.220", 6969)
-      val remote = new InetSocketAddress("101.184.125.243", 58291)
+      val remoteNode: PeerInfo = BootstrapNodes.addresses.head
+      val remoteAddr = remoteNode.address
       val ping = Ping(transactionId, localNode)
-      localActor ! SendToNode(ping, remote)
+      localActor ! SendToNode(ping, remoteAddr)
 
       fishForMessage(10.seconds){
-        case ReceivedFromNode(msg: Pong, remote) => true
+        case ReceivedFromNode(msg: Pong, `remoteAddr`) => true
         case other => false
       }
     }

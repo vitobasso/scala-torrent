@@ -51,10 +51,6 @@ case object NodeActor {
     */
   case object CleanInactiveSearches
 
-  implicit class NodeInfoOps(info: NodeInfo) {
-    def address: InetSocketAddress = new InetSocketAddress(info.ip.toString, info.port.toInt)
-  }
-
   /*
     find peers
       d = distance(infohash, node)  for node in local routing table   √

@@ -120,7 +120,9 @@ object DhtMessage {
     *   - 4-byte ip address
     *   - 2-byte port
     */
-  case class PeerInfo(ip: Ip, port: Port)
+  case class PeerInfo(ip: Ip, port: Port) {
+    def address: InetSocketAddress = new InetSocketAddress(ip.toString, port.toInt)
+  }
   object PeerInfo {
     def parse(inetAddress: InetSocketAddress): Either[String, PeerInfo] =
       for {
@@ -135,13 +137,15 @@ object DhtMessage {
     *   - 4-byte ip address
     *   - 2-byte port
     */
-  case class NodeInfo(id: NodeId, ip: Ip, port: Port)
+  case class NodeInfo(id: NodeId, ip: Ip, port: Port) { //TODO dedup with PeerInfo
+    def address: InetSocketAddress = new InetSocketAddress(ip.toString, port.toInt)
+  }
   object NodeInfo {
     def parse(id: NodeId, inetAddress: InetSocketAddress): Either[String, NodeInfo] =
       for {
         ip <- Ip.parse(inetAddress.getHostName).right
         port <- Port.parse(inetAddress.getPort).right
-      } yield NodeInfo(id, ip, port) //TODO dedup with PeerInfo
+      } yield NodeInfo(id, ip, port)
   }
 
   /**
