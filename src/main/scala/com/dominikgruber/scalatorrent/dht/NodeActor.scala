@@ -72,7 +72,6 @@ case object NodeActor {
   */
 case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
 
-  println(s"*** NodeActor, constructor")
 
   val routingTable = RoutingTable(selfNode) //TODO persist
   val peerMap = PeerMap() //TODO persist
@@ -82,7 +81,6 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
   val nodeSearches = NodeSearches
 
   override def preStart(): Unit = {
-    println("*** initializing")
     udp //trigger lazy init
     scheduleCleanup()
     bootstrap()
@@ -90,11 +88,9 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case SearchNode(id) =>
-      println("*** SearchNode")
       nodeSearches.start(id)
     case SearchPeers(hash) => peerSearches.start(hash)
     case AddNode(info) =>
-      println(s"*** AddNode $info")
       routingTable.add(info)
       bootstrap()
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
@@ -126,7 +122,6 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     case Pong(trans, origin) =>
       //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
-      println("*** NodesFound")
       nodeSearches.continue(trans, origin, nodes)
     case PeersFound(trans, origin, token, peers) =>
       reportPeersFound(trans, origin, peers)
@@ -178,7 +173,6 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     val weKnowSomeNodes = routingTable.findClosestNodes(selfNode).nonEmpty
     val notSearchingYet = nodeSearches.isInactive
     if (tableIsAlmostEmpty && weKnowSomeNodes && notSearchingYet) {
-      println(s"*** bootstrap")
       log.info("Performing node search to fill in routing table")
       self ! SearchNode(selfNode)
     }
@@ -195,7 +189,6 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
 
     def start(target: A): Unit = {
       val nodes = routingTable.findClosestNodes(target)
-      println(s"*** start, nodes: $nodes")
       super.start(target, sender, nodes){
         (trans, nextNode, _) => send(nextNode.address, newMessage(trans, target))
       }
