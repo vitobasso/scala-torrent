@@ -22,12 +22,12 @@ class NodeActorSearchPeersSpec extends NodeActorSpec {
         case SendToNode(GetPeers(_, origin, target), remote) =>
           origin shouldBe selfNode
           target shouldBe hash("01")
-          PeerInfo.parse(remote) shouldBe Right(PeerInfo(Ip(8), Port(8)))
+          Address.parse(remote) shouldBe Right(Address(Ip(8), Port(8)))
       }
 
       udp.expectMsgPF() {
         case SendToNode(GetPeers(_, _, _), remote) =>
-          PeerInfo.parse(remote) shouldBe Right(PeerInfo(Ip(9), Port(9)))
+          Address.parse(remote) shouldBe Right(Address(Ip(9), Port(9)))
       }
     }
 
@@ -41,7 +41,7 @@ class NodeActorSearchPeersSpec extends NodeActorSpec {
         case SendToNode(GetPeers(_, origin, target), remote) =>
           origin shouldBe selfNode
           target shouldBe hash("01")
-          PeerInfo.parse(remote) shouldBe Right(PeerInfo(Ip(4), Port(4)))
+          Address.parse(remote) shouldBe Right(Address(Ip(4), Port(4)))
       }
     }
 

@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets
 import akka.actor.{ActorRef, Props}
 import com.dominikgruber.scalatorrent.SelfInfo
 import com.dominikgruber.scalatorrent.dht.NodeActor.AddNode
-import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{Ip, NodeId, NodeInfo, Port}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import com.dominikgruber.scalatorrent.util.{ActorIT, ByteUtil}
 import org.scalatest.concurrent.Eventually
 
@@ -48,6 +48,7 @@ class NodeActorIT extends ActorIT with Eventually {
       }
     }
 
+    //TODO receive queries w/ invalid remote address
   }
 
   case object ReturnRoutingTable
@@ -64,7 +65,7 @@ class NodeActorIT extends ActorIT with Eventually {
         id <- NodeId.validate(idStr).right
         ip <- Ip.parse(ipArg).right
         port <- Port.parse(portArg).right
-      } yield NodeInfo(id, ip, port)
+      } yield NodeInfo(id, Address(ip, port))
     res.right.get
   }
 

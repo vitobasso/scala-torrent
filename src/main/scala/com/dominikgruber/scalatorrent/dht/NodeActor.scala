@@ -195,13 +195,13 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     def start(target: A): Unit = {
       val nodes: Seq[NodeInfo] = routingTable.findClosestNodes(target)
       super.start(target, sender, nodes){
-        (trans, nextNode, _) => send(nextNode.address, newMessage(trans, target))
+        (trans, nextNode, _) => send(nextNode.asJava, newMessage(trans, target))
       }
     }
 
     def continue(trans: TransactionId, origin: NodeId, newNodes: Seq[NodeInfo]): Unit =
       super.continue(trans, origin, newNodes){
-        (newTrans, nextNode, target) => send(nextNode.address, newMessage(newTrans, target))
+        (newTrans, nextNode, target) => send(nextNode.asJava, newMessage(newTrans, target))
       }.left.foreach { err =>
         log.warning(s"Can't continue search: $err")
       }

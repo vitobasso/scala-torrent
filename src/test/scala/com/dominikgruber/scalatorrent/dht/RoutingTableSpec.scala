@@ -5,7 +5,7 @@ import com.dominikgruber.scalatorrent.util.UnitSpec
 import org.scalatest.PrivateMethodTester
 import Util._
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage
-import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{NodeId, NodeInfo}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{Address, NodeId, NodeInfo}
 
 import scala.collection.SortedMap
 
@@ -139,7 +139,9 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
     def buckets: Buckets = sut invokePrivate PrivateMethod[Buckets]('buckets)()
   }
 
-  def nodeInfo(hexByte: String): NodeInfo =
-    NodeInfo(Util.node(hexByte), DhtMessage.Ip(0), DhtMessage.Port(0))
+  def nodeInfo(hexByte: String): NodeInfo = {
+    val address = Address(DhtMessage.Ip(0), DhtMessage.Port(0))
+    NodeInfo(Util.node(hexByte), address)
+  }
 
 }

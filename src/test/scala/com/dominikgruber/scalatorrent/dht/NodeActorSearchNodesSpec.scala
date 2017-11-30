@@ -22,12 +22,12 @@ class NodeActorSearchNodesSpec extends NodeActorSpec {
         case SendToNode(FindNode(_, origin, target), remote) =>
           origin shouldBe selfNode
           target shouldBe node("01")
-          PeerInfo.parse(remote) shouldBe Right(PeerInfo(Ip(8), Port(8)))
+          Address.parse(remote) shouldBe Right(Address(Ip(8), Port(8)))
       }
 
       udp.expectMsgPF() {
         case SendToNode(FindNode(_, _, _), remote) =>
-          PeerInfo.parse(remote) shouldBe Right(PeerInfo(Ip(9), Port(9)))
+          Address.parse(remote) shouldBe Right(Address(Ip(9), Port(9)))
       }
     }
 
@@ -41,7 +41,7 @@ class NodeActorSearchNodesSpec extends NodeActorSpec {
         case SendToNode(FindNode(_, origin, target), remote) =>
           origin shouldBe selfNode
           target shouldBe node("01")
-          PeerInfo.parse(remote) shouldBe Right(PeerInfo(Ip(4), Port(4)))
+          Address.parse(remote) shouldBe Right(Address(Ip(4), Port(4)))
       }
     }
 
@@ -69,7 +69,7 @@ class NodeActorSearchNodesSpec extends NodeActorSpec {
 
   def nodesFound(trans: TransactionId, origin: NodeInfo, nodes: NodeInfo): ReceivedFromNode = {
     val notFound = NodesFound(trans, origin.id, Seq(nodes))
-    val address = new InetSocketAddress(origin.ip.toString, origin.port.toInt)
+    val address = origin.address.asJava
     ReceivedFromNode(notFound, address)
   }
 

@@ -5,7 +5,7 @@ import java.net.InetAddress
 import cats.implicits.catsSyntaxMonadCombineSeparate
 import cats.instances.either._
 import cats.instances.list._
-import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{Ip, PeerInfo, Port}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage.{Address, Ip, Port}
 import org.slf4j.{Logger, LoggerFactory}
 
 object BootstrapNodes {
@@ -22,10 +22,10 @@ object BootstrapNodes {
 
   private val port: Port = Port(6881)
 
-  lazy val addresses: List[PeerInfo] = {
+  lazy val addresses: List[Address] = {
     val (errors, ips) = names.map(resolveIp).separate
     errors.foreach(log.warn)
-    ips.map(PeerInfo(_, port))
+    ips.map(Address(_, port))
   }
 
   private def resolveIp(hostName: String): Either[String, Ip] =

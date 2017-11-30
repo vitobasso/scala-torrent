@@ -20,7 +20,7 @@ class SearchManager[A <: Id20B] {
     */
   private var pending: Map[Transaction, Search[A]] = Map.empty
 
-  type Send = (TransactionId, NodeInfo, A) => Unit
+  type Send = (TransactionId, Address, A) => Unit
 
   /**
     * Starts the search by sending queries to given nodes.
@@ -44,7 +44,7 @@ class SearchManager[A <: Id20B] {
 
   private def sendAndWait(search: Search[A], send: Send)(nextNode: NodeInfo): Unit = {
     val trans = TransactionId.random
-    send(trans, nextNode, search.target)
+    send(trans, nextNode.address, search.target)
     pending += (Transaction(nextNode.id, trans) -> search)
   }
 
