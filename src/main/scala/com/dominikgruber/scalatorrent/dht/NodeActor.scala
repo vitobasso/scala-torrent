@@ -180,7 +180,7 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
   private def closestNodesOrBootstrap(target: NodeId): Seq[NodeInfo] = {
     val nodes = routingTable.findClosestNodes(target)
     if(nodes.nonEmpty) nodes
-    else BootstrapNodes.addresses
+    else BootstrapNodes.nodes
   }
 
   private def scheduleCleanup(): Unit =
