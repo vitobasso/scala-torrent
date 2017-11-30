@@ -36,13 +36,13 @@ class UdpSocketIT extends ActorIT {
     }
 
     "send a msg remotely" in {
-      val remoteAddr: Address = BootstrapNodes.addresses.head
-      val remoteInetAddr = remoteAddr.asJava
+      val remoteNode: NodeInfo = BootstrapNodes.nodes.head
+      val remoteAddr = remoteNode.address.asJava
       val ping = Ping(transactionId, localNode)
-      localActor ! SendToNode(ping, remoteInetAddr)
+      localActor ! SendToNode(ping, remoteAddr)
 
       fishForMessage(10.seconds){
-        case ReceivedFromNode(msg: Pong, `remoteInetAddr`) => true
+        case ReceivedFromNode(msg: Pong, `remoteAddr`) => true
         case other => false
       }
     }
