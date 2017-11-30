@@ -40,22 +40,22 @@ class KrpcEncodingSpec extends UnitSpec {
   val addr1: PeerInfo = {
     val ip = Ip.parse("49.50.51.52").right.get //1234
     val port = Port(0x00003536) //56
-    PeerInfo(ip, port)
+    Address(ip, port)
   }
 
   val rawAddr2 = "abcdef"
   val addr2: PeerInfo = {
     val ip = Ip.parse("97.98.99.100").right.get //abcd
     val port = Port(0x00006566) //ef
-    PeerInfo(ip, port)
+    Address(ip, port)
   }
 
   val nodeId1 = "nodeid1-has-20-chars"
   val nodeId2 = "nodeid2-has-20-chars"
   val rawNodes = s"$nodeId1$rawAddr1$nodeId2$rawAddr2"
   val nodes: Seq[NodeInfo] = {
-    val node1 = NodeInfo(nodeId(nodeId1), addr1.ip, addr1.port)
-    val node2 = NodeInfo(nodeId(nodeId2), addr2.ip, addr2.port)
+    val node1 = NodeInfo(nodeId(nodeId1), Address(addr1.ip, addr1.port))
+    val node2 = NodeInfo(nodeId(nodeId2), Address(addr2.ip, addr2.port))
     Seq(node1, node2)
   }
 

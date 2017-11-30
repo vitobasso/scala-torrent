@@ -28,13 +28,14 @@ object Util {
   def nodeInfo(hexByte: String): NodeInfo = {
     require(hexByte.length == 2)
     val b = ByteUtil.bytes(hexByte).head
-    NodeInfo(node(hexByte), Ip(0, 0, 0, b), Port(b))
+    val address = Address(Ip(0, 0, 0, b), Port(b))
+    NodeInfo(node(hexByte), address)
   }
 
   def peerInfo(hexByte: String): PeerInfo = {
     require(hexByte.length == 2)
     val b = ByteUtil.bytes(hexByte).head
-    PeerInfo(Ip(0, 0, 0, b), Port(b))
+    Address(Ip(0, 0, 0, b), Port(b))
   }
 
 }

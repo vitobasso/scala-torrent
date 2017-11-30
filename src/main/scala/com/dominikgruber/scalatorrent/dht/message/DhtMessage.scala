@@ -115,21 +115,23 @@ object DhtMessage {
       value >= 0 && value < Math.pow(2,16)
   }
 
+  case class Address(ip: Ip, port: Port) {
+    def asJava: InetSocketAddress = new InetSocketAddress(ip.toString, port.toInt)
+  }
+  object Address {
+    def parse(inetAddress: InetSocketAddress): Either[String, Address] =
+      for {
+        ip <- Ip.parse(inetAddress.getHostName).right
+        port <- Port.parse(inetAddress.getPort).right
+      } yield Address(ip, port)
+  }
+
   /**
     * 6-byte compact peer info
     *   - 4-byte ip address
     *   - 2-byte port
     */
-  case class PeerInfo(ip: Ip, port: Port) {
-    def address: InetSocketAddress = new InetSocketAddress(ip.toString, port.toInt)
-  }
-  object PeerInfo {
-    def parse(inetAddress: InetSocketAddress): Either[String, PeerInfo] =
-      for {
-        ip <- Ip.parse(inetAddress.getHostName).right
-        port <- Port.parse(inetAddress.getPort).right
-      } yield PeerInfo(ip, port)
-  }
+  type PeerInfo = Address
 
   /**
     * 26-byte compact node info
@@ -137,15 +139,12 @@ object DhtMessage {
     *   - 4-byte ip address
     *   - 2-byte port
     */
-  case class NodeInfo(id: NodeId, ip: Ip, port: Port) { //TODO dedup with PeerInfo
-    def address: InetSocketAddress = new InetSocketAddress(ip.toString, port.toInt)
-  }
+  case class NodeInfo(id: NodeId, address: Address)
   object NodeInfo {
     def parse(id: NodeId, inetAddress: InetSocketAddress): Either[String, NodeInfo] =
       for {
-        ip <- Ip.parse(inetAddress.getHostName).right
-        port <- Port.parse(inetAddress.getPort).right
-      } yield NodeInfo(id, ip, port)
+        address <- Address.parse(inetAddress).right
+      } yield NodeInfo(id, address)
   }
 
   /**
