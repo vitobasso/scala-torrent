@@ -193,9 +193,20 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     def newMessage(newTrans: TransactionId, target: A): Message
 
     def start(target: A): Unit = {
-      val nodes: Seq[NodeInfo] = routingTable.findClosestNodes(target)
+      val nodes: Seq[NodeInfo] = nodesToStart(target)
+      if(nodes.isEmpty) log.error("Can't start a search: no starting nodes")
       super.start(target, sender, nodes){
         (trans, nextNode, _) => send(nextNode.asJava, newMessage(trans, target))
+      }
+    }
+
+    private def nodesToStart(target: A): Seq[NodeInfo] = {
+      val nodes: Seq[NodeInfo] = routingTable.findClosestNodes(target)
+      if(nodes.size > routingTable.k) {
+        nodes
+      } else {
+        log.debug("No nodes in routing table to start a search. Will use bootstrap nodes")
+        nodes ++ BootstrapNodes.nodes
       }
     }
 
