@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.util
 
-import akka.actor.{ActorRef, ActorSystem, Terminated}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.actor.{ActorRef, ActorSystem, Props, Terminated}
+import akka.testkit.{EventFilter, ImplicitSender, TestKit}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -25,6 +25,13 @@ abstract class ActorIT extends TestKit(ActorSystem())
       case _ => false
     }
     unwatch(actor)
+  }
+
+  def syncStart(props: Props, name: String): ActorRef = {
+    val ref = system.actorOf(props, name)
+    val msg = s"$name - started"
+    EventFilter.debug(start = msg, occurrences = 1).awaitDone(100.millis)
+    ref
   }
 
 }
