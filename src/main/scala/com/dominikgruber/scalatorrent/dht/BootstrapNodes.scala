@@ -8,6 +8,9 @@ import cats.instances.list._
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import org.slf4j.{Logger, LoggerFactory}
 
+/**
+  * Source: https://stackoverflow.com/questions/9451424/where-can-i-find-a-list-of-bittorent-dht-bootstrap-nodes
+  */
 object BootstrapNodes {
 
   private val log: Logger = LoggerFactory.getLogger(getClass)

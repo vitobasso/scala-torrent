@@ -22,27 +22,27 @@ class UdpSocketIT extends ActorIT {
   val localNode: NodeId = node("01")
   val transactionId = TransactionId("t-id")
 
+  val remoteNode: NodeInfo = BootstrapNodes.nodes.head
+  val remoteAddr = remoteNode.address.asJava
+
   "Udp actor" should {
 
-    "send a msg locally" in {
-      val localAddr = new InetSocketAddress("localhost", 50001)
-      val ping = Ping(transactionId, localNode)
-      localActor ! SendToNode(ping, localAddr)
-
-      fishForMessage(5.seconds){
-        case ReceivedFromNode(msg: Ping, `localAddr`) => true
-        case other => false
-      }
-    }
-
-    "send a msg remotely" in {
-      val remoteNode: NodeInfo = BootstrapNodes.nodes.head
-      val remoteAddr = remoteNode.address.asJava
+    "query for ping" in {
       val ping = Ping(transactionId, localNode)
       localActor ! SendToNode(ping, remoteAddr)
 
       fishForMessage(10.seconds){
         case ReceivedFromNode(msg: Pong, `remoteAddr`) => true
+        case other => false
+      }
+    }
+
+    "query for find_node" in {
+      val find = FindNode(transactionId, localNode, localNode)
+      localActor ! SendToNode(find, remoteAddr)
+
+      fishForMessage(10.seconds){
+        case ReceivedFromNode(msg: NodesFound, `remoteAddr`) => true
         case other => false
       }
     }
