@@ -15,7 +15,7 @@ class UdpSocketIT extends ActorIT {
 
   def createUdpActor(port: Int): ActorRef = {
     def f = new UdpSocket(testActor, port)
-    system.actorOf(Props(f), s"udp-socket-$port")
+   syncStart(Props(f), s"udp-socket-$port")
   }
 
   val localActor: ActorRef = createUdpActor(50001)

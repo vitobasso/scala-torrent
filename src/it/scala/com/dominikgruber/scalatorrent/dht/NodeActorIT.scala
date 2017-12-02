@@ -26,7 +26,7 @@ class NodeActorIT extends ActorIT with Eventually {
 
     val nodeActor: ActorRef = {
       def createActor = new SpiedNodeActor(SelfInfo.nodeId)
-      system.actorOf(Props(createActor), "node")
+      syncStart(Props(createActor), "node")
     }
 
     "start with an empty routing table" in {
@@ -36,7 +36,6 @@ class NodeActorIT extends ActorIT with Eventually {
     }
 
     "initialize the routing table" in {
-      Thread.sleep(100)
       realPeers.foreach { node =>
         nodeActor ! AddNode(node)
       }
