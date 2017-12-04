@@ -10,11 +10,11 @@ import scala.language.{implicitConversions, postfixOps}
 /**
   * http://www.bittorrent.org/beps/bep_0005.html
   *
-  * @param k: number of nodes per bucket. must be a power of 2.
+  * @param nodesPerBucket must be a power of 2
   * @param me: id of the node owning this table
   */
-case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
-  require(isPowerOf2(k))
+case class RoutingTable(me: NodeId, nodesPerBucket: Int = DefaultNodesPerBucket) {
+  require(isPowerOf2(nodesPerBucket))
 
   private var buckets: SortedMap[BigInt, Bucket] = SortedMap (
     Min -> Bucket(Map.empty, Min, Max)
@@ -35,7 +35,7 @@ case class RoutingTable(me: NodeId, k: Int = DefaultNodesPerBucket) {
       case Some(_) =>
         addTo(bucket, info)
       case None =>
-        if (bucket.size < k)
+        if (bucket.size < nodesPerBucket)
           addTo(bucket, info)
         else if(containsMe(bucket) && isWorthSplitting(bucket, info.id)) {
           split(bucket)

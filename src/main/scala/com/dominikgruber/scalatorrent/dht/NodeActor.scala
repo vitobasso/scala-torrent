@@ -197,7 +197,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
     private def nodesToStart(target: A): Seq[NodeInfoOrAddress] = {
       val nodes: Seq[NodeInfoOrAddress] = routingTable.findClosestNodes(target).map(_.asRight)
-      if(nodes.size > routingTable.k) {
+      if(nodes.size > routingTable.nodesPerBucket) {
         nodes
       } else {
         log.debug("No nodes in routing table to start a search. Will use bootstrap nodes")
