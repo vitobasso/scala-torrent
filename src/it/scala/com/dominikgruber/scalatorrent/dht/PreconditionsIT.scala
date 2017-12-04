@@ -18,7 +18,7 @@ class PreconditionsIT extends WordSpec with Matchers {
 
   "Bootstrap Nodes" should {
     "have host names resolved" in {
-      BootstrapNodes.nodes should not be empty
+      Bootstrap.addresses should not be empty
     }
   }
 

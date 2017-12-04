@@ -39,7 +39,7 @@ class NodeActorIT extends ActorIT with Eventually {
   }
 
   case object ReturnRoutingTable
-  class SpiedNodeActor(selfId: NodeId) extends NodeActor(selfId) {
+  class SpiedNodeActor(selfId: NodeId) extends NodeActor(selfId, 50000) {
     override def receive: Receive = super.receive.orElse {
       case ReturnRoutingTable => sender ! routingTable
     }

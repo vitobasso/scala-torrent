@@ -11,7 +11,7 @@ import org.slf4j.{Logger, LoggerFactory}
 /**
   * Source: https://stackoverflow.com/questions/9451424/where-can-i-find-a-list-of-bittorent-dht-bootstrap-nodes
   */
-object BootstrapNodes {
+object Bootstrap {
 
   private val log: Logger = LoggerFactory.getLogger(getClass)
 
@@ -25,25 +25,16 @@ object BootstrapNodes {
 
   private val port: Port = Port(6881)
 
-  lazy val nodes: List[NodeInfo] = {
+  lazy val addresses: List[Address] = {
     val (errors, nodes) = names.map(createNode).separate
     errors.foreach(log.warn)
     nodes
   }
 
-  private def createNode(hostName: String): Either[String, NodeInfo] =
+  private def createNode(hostName: String): Either[String, Address] =
     for {
       ip <- resolveIp(hostName).right
-      id <- literalNodeId(hostName).right
-    } yield NodeInfo(id, Address(ip, port))
-
-  /**
-    * A collision should be as unlikely as when we randomly generate our own NodeId
-    */
-  private def literalNodeId(hostName: String): Either[String, NodeId] = {
-    val str20: String = hostName.take(20).padTo(20, ' ')
-    NodeId.validate(str20)
-  }
+    } yield Address(ip, port)
 
   private def resolveIp(hostName: String): Either[String, Ip] =
     try {

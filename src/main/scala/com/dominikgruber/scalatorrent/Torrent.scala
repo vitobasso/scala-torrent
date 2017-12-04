@@ -28,7 +28,7 @@ object Torrent {
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
 }
 
-class Torrent(meta: MetaInfo, coordinator: ActorRef, portIn: Int)
+class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn: Int)
   extends Actor with ActorLogging {
 
   //lazy prevents unwanted init before overwrite from test
@@ -100,7 +100,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, portIn: Int)
     }
 
   private def createPeerFinderActor() = {
-    val props = Props(classOf[PeerFinder], meta, portIn, self)
+    val props = Props(classOf[PeerFinder], meta, peerPortIn, nodePortIn, self)
     context.actorOf(props, s"peer-finder-${meta.hash}")
   }
 
