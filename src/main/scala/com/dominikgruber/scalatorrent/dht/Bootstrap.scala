@@ -18,7 +18,7 @@ object Bootstrap {
   private val names: List[String] = List(
     "router.bittorrent.com",
     "router.utorrent.com",
-    "router.bitcomet.com",
+//    "router.bitcomet.com",
     "dht.transmissionbt.com",
     "dht.aelitis.com"
   )

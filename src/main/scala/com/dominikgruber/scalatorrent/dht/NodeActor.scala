@@ -93,10 +93,14 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
       case q: Query =>
         handleQuery(q, remote)
-        updateTable(q.origin, remote)
+        resolveOrigin(q.origin, remote) {
+          routingTable.add
+        }
       case r: Response =>
-        handleResponse(r, remote)
-        updateTable(r.origin, remote)
+        resolveOrigin(r.origin, remote) { info =>
+          handleResponse(r, info)
+          routingTable.add(info)
+        }
       case Error(_, code, message) =>
         log.error(s"Received dht error $code: $message")
     }
@@ -115,31 +119,19 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       answerGetPeers(remote, trans, hash)
   }
 
-  private def handleResponse(msg: Response, remote: InetSocketAddress): Unit = msg match {
+  private def handleResponse(msg: Response, info: NodeInfo): Unit = msg match {
     case Pong(trans, origin) =>
       //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
-      resolveOrigin(origin, remote) {
-        nodeSearches.continue(trans, _, nodes)
-      }
+      nodeSearches.continue(trans, info, nodes)
     case PeersFound(trans, origin, token, peers) =>
-      resolveOrigin(origin, remote) {
-        reportPeersFound(trans, _, peers)
-      }
+      reportPeersFound(trans, info, peers)
     case PeersNotFound(trans, origin, token, nodes) =>
-      resolveOrigin(origin, remote) {
-        peerSearches.continue(trans, _, nodes)
-      }
+      peerSearches.continue(trans, info, nodes)
   }
 
   private def send(remote: InetSocketAddress, message: Message): Unit =
     udp ! SendToNode(message, remote)
-
-  private def updateTable(id: NodeId, addr: InetSocketAddress): Unit =
-    NodeInfo.parse(id, addr) match {
-      case Right(info) => routingTable.add(info)
-      case Left(err) => log.warning(s"Couldn't update routing table: $err")
-    }
 
   private def resolveOrigin(id: NodeId, addr: InetSocketAddress)(handle: NodeInfo => Unit): Unit =
     NodeInfo.parse(id, addr) match {
