@@ -45,7 +45,7 @@ case class UdpSocket(listener: ActorRef, port: Int) extends Actor with ActorLogg
       KrpcEncoding.encode(msg) match {
         case Right(str) =>
           log.debug(s"Sending: $msg")
-          socket ! Send(ByteString(str), remote)
+          socket ! Send(ByteString(str, ISO_8859_1), remote) //TODO a test requiring the charset
         case Left(err) =>
           log.error(s"Failed to send message: $err")
       }
