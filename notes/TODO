@@ -4,10 +4,12 @@
         ~ magnet, mainline DHT
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
     dht
-        ~ manager actor
         - persist routing table
         - persist peer info
         - refresh buckets (lastChagned 15min)
+        - find peers
+          - stop if found enough peers; or
+          - store (in local routing table?) contact of x responding nodes closest to infohash
     send Bitfield, Have & Piece
     repeat request to tracker
 
