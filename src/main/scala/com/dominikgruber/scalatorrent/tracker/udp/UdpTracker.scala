@@ -12,11 +12,10 @@ import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.tracker.http.TrackerResponseWithSuccess
 import com.dominikgruber.scalatorrent.tracker.udp.UdpEncoding._
-import com.typesafe.config.ConfigFactory
 
 import scala.util.{Failure, Random, Success}
 
-case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Actor with ActorLogging {
+case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress, port: Int) extends Actor with ActorLogging {
 
   val udpManager: ActorRef = IO(UdpConnected)(context.system)
 
@@ -67,8 +66,6 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress) extends Act
           requester ! TrackerConnectionFailed(t.getMessage)
       }
   }
-
-  val port: Int = ConfigFactory.load.getConfig("scala-torrent").getInt("port") //TODO
 
   def disconnecting: Receive = {
     case UdpConnected.Disconnected => context.stop(self)
