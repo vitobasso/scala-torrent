@@ -21,6 +21,13 @@ object PeerFinder {
   case class PeersFound(addresses: Set[PeerAddress])
 }
 
+/**
+  * Finds peers via trackers (HTTP, UDP) or the DHT
+  *
+  * @param peerPortIn: local port listening to BitTorrent messages
+  * @param nodePortIn: local port listening to DHT messages
+  * @param torrent: actor interested in finding peers
+  */
 case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent: ActorRef) extends Actor with ActorLogging {
 
   //lazy prevents init before overwrite from test
@@ -58,7 +65,7 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
       case url("http", _, _) =>
         Some(Props(classOf[HttpTracker], meta, selfPeerId, peerPortIn)) //TODO rm selfPeerId param
       case url("udp", host, port) =>
-        Some(Props(classOf[UdpTracker], meta.fileInfo, new InetSocketAddress(host, port.toInt)))
+        Some(Props(classOf[UdpTracker], meta.fileInfo, new InetSocketAddress(host, port.toInt), peerPortIn))
       case _ => None
     }
     val escapedUrl = peerUrl.replaceAll("/", "_")
