@@ -22,8 +22,7 @@ class UdpSocketIT extends ActorIT {
   val localNode: NodeId = node("01")
   val transactionId = TransactionId("t-id")
 
-  val remoteNode: NodeInfo = BootstrapNodes.nodes.head
-  val remoteAddr = remoteNode.address.asJava
+  val remoteAddr: InetSocketAddress = Bootstrap.addresses.head.asJava
 
   "Udp actor" should {
 

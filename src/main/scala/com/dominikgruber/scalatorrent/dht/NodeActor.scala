@@ -5,11 +5,13 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.SelfInfo
 import com.dominikgruber.scalatorrent.dht.NodeActor._
+import com.dominikgruber.scalatorrent.dht.SearchManager.NodeInfoOrAddress
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import cats.syntax.either._
 
 /**
   * http://www.bittorrent.org/beps/bep_0005.html
@@ -17,11 +19,6 @@ import scala.language.postfixOps
 case object NodeActor {
 
   val CleanupInterval: FiniteDuration = 5 minutes
-
-  /**
-    * Identifies a request to a remote node
-    */
-  case class Transaction(node: NodeId, id: TransactionId)
 
   /**
     * Will cause this actor to discover new nodes and update the routing table.
@@ -70,7 +67,7 @@ case object NodeActor {
 /**
   * A node in a DHT network
   */
-case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
+case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLogging {
 
 
   val routingTable = RoutingTable(selfNode) //TODO persist
@@ -122,11 +119,17 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     case Pong(trans, origin) =>
       //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
-      nodeSearches.continue(trans, origin, nodes)
+      resolveOrigin(origin, remote) {
+        nodeSearches.continue(trans, _, nodes)
+      }
     case PeersFound(trans, origin, token, peers) =>
-      reportPeersFound(trans, origin, peers)
+      resolveOrigin(origin, remote) {
+        reportPeersFound(trans, _, peers)
+      }
     case PeersNotFound(trans, origin, token, nodes) =>
-      peerSearches.continue(trans, origin, nodes)
+      resolveOrigin(origin, remote) {
+        peerSearches.continue(trans, _, nodes)
+      }
   }
 
   private def send(remote: InetSocketAddress, message: Message): Unit =
@@ -138,7 +141,13 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
       case Left(err) => log.warning(s"Couldn't update routing table: $err")
     }
 
-  private def reportPeersFound(trans: TransactionId, origin: NodeId, peers: Seq[PeerInfo]): Unit =
+  private def resolveOrigin(id: NodeId, addr: InetSocketAddress)(handle: NodeInfo => Unit): Unit =
+    NodeInfo.parse(id, addr) match {
+      case Right(origin) => handle(origin)
+      case Left(err) => log.warning(s"Can't resolve origin address: $err")
+    }
+
+  private def reportPeersFound(trans: TransactionId, origin: NodeInfo, peers: Seq[PeerInfo]): Unit =
     peerSearches.remember(origin, trans) match {
       case Right(search) =>
         peerMap.add(search.target, peers.toSet)
@@ -177,12 +186,6 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     }
   }
 
-  private def closestNodesOrBootstrap(target: NodeId): Seq[NodeInfo] = {
-    val nodes = routingTable.findClosestNodes(target)
-    if(nodes.nonEmpty) nodes
-    else BootstrapNodes.nodes
-  }
-
   private def scheduleCleanup(): Unit =
     context.system.scheduler.schedule(CleanupInterval, CleanupInterval) {
       self ! CleanInactiveSearches
@@ -193,24 +196,24 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
     def newMessage(newTrans: TransactionId, target: A): Message
 
     def start(target: A): Unit = {
-      val nodes: Seq[NodeInfo] = nodesToStart(target)
+      val nodes: Seq[NodeInfoOrAddress] = nodesToStart(target)
       if(nodes.isEmpty) log.error("Can't start a search: no starting nodes")
       super.start(target, sender, nodes){
         (trans, nextNode, _) => send(nextNode.asJava, newMessage(trans, target))
       }
     }
 
-    private def nodesToStart(target: A): Seq[NodeInfo] = {
-      val nodes: Seq[NodeInfo] = routingTable.findClosestNodes(target)
+    private def nodesToStart(target: A): Seq[NodeInfoOrAddress] = {
+      val nodes: Seq[NodeInfoOrAddress] = routingTable.findClosestNodes(target).map(_.asRight)
       if(nodes.size > routingTable.k) {
         nodes
       } else {
         log.debug("No nodes in routing table to start a search. Will use bootstrap nodes")
-        nodes ++ BootstrapNodes.nodes
+        nodes ++ Bootstrap.addresses.map(_.asLeft)
       }
     }
 
-    def continue(trans: TransactionId, origin: NodeId, newNodes: Seq[NodeInfo]): Unit =
+    def continue(trans: TransactionId, origin: NodeInfo, newNodes: Seq[NodeInfo]): Unit =
       super.continue(trans, origin, newNodes){
         (newTrans, nextNode, target) => send(nextNode.asJava, newMessage(newTrans, target))
       }.left.foreach { err =>
@@ -228,7 +231,7 @@ case class NodeActor(selfNode: NodeId) extends Actor with ActorLogging {
   }
 
   private def createUdpSocketActor: ActorRef = {
-    val props = Props(classOf[UdpSocket], self, 50000) //TODO get port from config or dynamically
+    val props = Props(classOf[UdpSocket], self, port)
     val nodeIdStr = SelfInfo.nodeId.toString.replace("(", ":").replace(" ", ":").replace(")", "")
     context.actorOf(props, s"udp-socket-$nodeIdStr")
   }

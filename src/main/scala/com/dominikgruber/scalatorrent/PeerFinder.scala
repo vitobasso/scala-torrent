@@ -21,7 +21,7 @@ object PeerFinder {
   case class PeersFound(addresses: Set[PeerAddress])
 }
 
-case class PeerFinder(meta: MetaInfo, portIn: Int, torrent: ActorRef) extends Actor with ActorLogging {
+case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent: ActorRef) extends Actor with ActorLogging {
 
   //lazy prevents init before overwrite from test
   lazy val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
@@ -56,7 +56,7 @@ case class PeerFinder(meta: MetaInfo, portIn: Int, torrent: ActorRef) extends Ac
     val url: Regex = """(\w+)://(.*):(\d+)""".r
     val props = peerUrl match {
       case url("http", _, _) =>
-        Some(Props(classOf[HttpTracker], meta, selfPeerId, portIn)) //TODO rm selfPeerId param
+        Some(Props(classOf[HttpTracker], meta, selfPeerId, peerPortIn)) //TODO rm selfPeerId param
       case url("udp", host, port) =>
         Some(Props(classOf[UdpTracker], meta.fileInfo, new InetSocketAddress(host, port.toInt)))
       case _ => None
@@ -68,7 +68,7 @@ case class PeerFinder(meta: MetaInfo, portIn: Int, torrent: ActorRef) extends Ac
   }
 
   private def createNodeActor: ActorRef = {
-    val props = Props(classOf[NodeActor], SelfInfo.nodeId)
+    val props = Props(classOf[NodeActor], SelfInfo.nodeId, nodePortIn)
     context.actorOf(props, s"node-actor-${SelfInfo.nodeId}")
   }
 
