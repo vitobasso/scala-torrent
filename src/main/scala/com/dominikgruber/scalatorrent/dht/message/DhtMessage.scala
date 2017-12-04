@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent.dht.message
 
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
@@ -86,10 +86,14 @@ object DhtMessage {
           0x000000FF & b4
       Ip(int)
     }
+    def parse(bytes: Array[Byte]): Either[String, Ip] = {
+      if(bytes.length == 4) Right(Ip(bytes(0), bytes(1), bytes(2), bytes(3)))
+      else Left(s"Invalid ip: '$bytes'")
+    }
+    def parse(addr: InetAddress): Either[String, Ip] = parse(addr.getAddress)
     def parse(str: String): Either[String, Ip] =
       str.split("\\.").toList.traverseU(toByte) match {
-        case Right(bytes) if bytes.length == 4 =>
-          Right(Ip(bytes(0), bytes(1), bytes(2), bytes(3)))
+        case Right(bytes) => parse(bytes.toArray)
         case _ => Left(s"Invalid ip: '$str'")
       }
     private def toByte(str: String): Either[String, Byte] =
@@ -121,7 +125,7 @@ object DhtMessage {
   object Address {
     def parse(inetAddress: InetSocketAddress): Either[String, Address] =
       for {
-        ip <- Ip.parse(inetAddress.getHostName).right
+        ip <- Ip.parse(inetAddress.getAddress).right
         port <- Port.parse(inetAddress.getPort).right
       } yield Address(ip, port)
   }
