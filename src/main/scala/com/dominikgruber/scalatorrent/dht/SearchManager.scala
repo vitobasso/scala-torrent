@@ -74,11 +74,18 @@ class SearchManager[A <: Id20B] {
     * Validates that we have a pending query to this origin with this [[TransactionId]].
     * @return return the corresponding search state.
     */
-  def remember(origin: NodeInfo, trans: TransactionId): Either[String, Search[A]] = {
-    val transaction = Transaction(origin.id.asRight, trans) //TODO if can't find by id try by address
-    val search = pending.get(transaction)
-    pending -= transaction
-    search.toRight(s"Wasn't expecting $transaction.")
+  def remember(origin: NodeInfo, trans: TransactionId): Either[String, Search[A]] =
+    rememberTransaction(Transaction(origin.id.asRight, trans))
+      .orElse { rememberTransaction(Transaction(origin.address.asLeft, trans)) }
+
+  private def rememberTransaction(transaction: Transaction): Either[String, Search[A]] = {
+    pending.get(transaction) match {
+      case Some(search) =>
+        pending -= transaction
+        Right(search)
+      case None =>
+        Left(s"Wasn't expecting $transaction.")
+    }
   }
 
   def isInactive: Boolean = pending.isEmpty
