@@ -14,58 +14,8 @@ import scala.language.postfixOps
 import cats.syntax.either._
 
 /**
-  * http://www.bittorrent.org/beps/bep_0005.html
-  */
-case object NodeActor {
-
-  val CleanupInterval: FiniteDuration = 5 minutes
-
-  /**
-    * Will cause this actor to discover new nodes and update the routing table.
-    * There's no response to be returned.
-    */
-  case class SearchNode(id: NodeId)
-
-  /**
-    * Request from a local actor.
-    * Results in [[FoundPeers]]
-    */
-  case class SearchPeers(hash: InfoHash)
-
-  /**
-    * This actor's response to [[SearchPeers]]
-    */
-  case class FoundPeers(target: InfoHash, peers: Seq[PeerInfo])
-
-  /**
-    * Add this node to routing table.
-    * E.g.: It was found in a torrent file
-    */
-  case class AddNode(node: NodeInfo)
-
-  /**
-    * Scheduled by the actor itself to cleanup old request and related transactions
-    */
-  case object CleanInactiveSearches
-
-  /*
-    find peers
-      d = distance(infohash, node)  for node in local routing table   √
-      select x closest nodes, ask each  √
-      stop if
-        found enough peers; or
-        can't find closer node  √
-      store (in local routing table?) contact of x responding nodes closest to infohash
-
-    init
-      upon inserting first node in table:
-        find nodes, every time closer, until can't find more
-   */
-
-}
-
-/**
   * A node in a DHT network
+  * http://www.bittorrent.org/beps/bep_0005.html
   */
 case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLogging {
 
@@ -227,5 +177,39 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
     val nodeIdStr = SelfInfo.nodeId.toString.replace("(", ":").replace(" ", ":").replace(")", "")
     context.actorOf(props, s"udp-socket-$nodeIdStr")
   }
+
+}
+
+case object NodeActor {
+
+  val CleanupInterval: FiniteDuration = 5 minutes
+
+  /**
+    * Will cause this actor to discover new nodes and update the routing table.
+    * There's no response to be returned.
+    */
+  case class SearchNode(id: NodeId)
+
+  /**
+    * Request from a local actor.
+    * Results in [[FoundPeers]]
+    */
+  case class SearchPeers(hash: InfoHash)
+
+  /**
+    * This actor's response to [[SearchPeers]]
+    */
+  case class FoundPeers(target: InfoHash, peers: Seq[PeerInfo])
+
+  /**
+    * Add this node to routing table.
+    * E.g.: It was found in a torrent file
+    */
+  case class AddNode(node: NodeInfo)
+
+  /**
+    * Scheduled by the actor itself to cleanup old request and related transactions
+    */
+  case object CleanInactiveSearches
 
 }
