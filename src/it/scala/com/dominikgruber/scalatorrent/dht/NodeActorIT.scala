@@ -9,6 +9,10 @@ import com.dominikgruber.scalatorrent.util.{ActorIT, ByteUtil}
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
+import java.nio.charset.StandardCharsets.ISO_8859_1
+
+import com.dominikgruber.scalatorrent.dht.NodeActor.{FoundPeers, SearchPeers}
+
 
 class NodeActorIT extends ActorIT with Eventually {
 
@@ -29,6 +33,19 @@ class NodeActorIT extends ActorIT with Eventually {
         table(nodeActor).nBucketsUsed should be > 1
       }
     }
+
+
+    "find peers for a torrent hash" in {
+      val hash: InfoHash = infoHash("08 AD A5 A7 A6 18 3A AE 1E 09 D8 31 DF 67 48 D5 66 09 5A 10") //Sintel movie
+      nodeActor ! SearchPeers(hash)
+
+      eventually {
+        val found = expectMsgType[FoundPeers]
+        found.target shouldBe hash
+        found.peers should not be empty
+      }
+    }
+
 
     //TODO receive queries w/ invalid remote address
   }
@@ -54,6 +71,12 @@ class NodeActorIT extends ActorIT with Eventually {
         port <- Port.parse(portArg).right
       } yield NodeInfo(id, Address(ip, port))
     res.right.get
+  }
+
+  def infoHash(hex: String): InfoHash = {
+    val hashBytes = ByteUtil.bytes(hex)
+    val hashStr = new String(hashBytes, ISO_8859_1)
+    InfoHash.validate(hashStr).right.get
   }
 
 }
