@@ -10,6 +10,7 @@ import akka.util.ByteString
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage.Message
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
 import com.dominikgruber.scalatorrent.dht.message.KrpcEncoding
+import com.dominikgruber.scalatorrent.dht.message.ShortString._
 
 object UdpSocket {
   case class SendToNode(message: Message, remote: InetSocketAddress)
@@ -35,7 +36,7 @@ case class UdpSocket(listener: ActorRef, port: Int) extends Actor with ActorLogg
       val str = data.decodeString(ISO_8859_1)
       KrpcEncoding.decode(str) match {
         case Right(msg) =>
-          log.debug(s"Received: $msg")
+          log.debug(s"Received: ${shortString(msg)}")
           listener ! ReceivedFromNode(msg, remote)
         case Left(err) =>
           log.error(s"Failed to parse message: $err. $str")
@@ -44,7 +45,7 @@ case class UdpSocket(listener: ActorRef, port: Int) extends Actor with ActorLogg
     case SendToNode(msg, remote) =>
       KrpcEncoding.encode(msg) match {
         case Right(str) =>
-          log.debug(s"Sending: $msg")
+          log.debug(s"Sending: ${shortString(msg)}")
           socket ! Send(ByteString(str, ISO_8859_1), remote) //TODO a test requiring the charset
         case Left(err) =>
           log.error(s"Failed to send message: $err")
