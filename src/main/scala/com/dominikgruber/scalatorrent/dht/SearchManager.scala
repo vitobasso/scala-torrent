@@ -47,7 +47,7 @@ class SearchManager[A <: Id20B] {
     * Starts the search by sending queries to given nodes.
     * Keeps track of this search for when handling the response later.
     */
-  def start(target: A, requester: ActorRef, startingNodes: Seq[NodeInfoOrAddress])(send: Send): Unit = {
+  def start(target: A, startingNodes: Seq[NodeInfoOrAddress], requester: ActorRef)(send: Send): Unit = {
     val search = Search(target, requester)
     searches += search
     startingNodes.foreach { sendAndWait(search, send) }
