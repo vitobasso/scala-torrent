@@ -35,9 +35,9 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
   override def receive: Receive = {
     case SearchNode(id) =>
-      nodeSearches.start(id)
+      nodeSearches.start(id, sender)
     case SearchPeers(hash) =>
-      peerSearches.start(hash)
+      peerSearches.start(hash, sender)
     case AddNode(info) =>
       routingTable.add(info)
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
@@ -137,10 +137,10 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
     def newMessage(newTrans: TransactionId, target: A): Message
 
-    def start(target: A): Unit = {
+    def start(target: A, requester: ActorRef): Unit = {
       val nodes: Seq[NodeInfoOrAddress] = nodesToStart(target)
       if(nodes.isEmpty) log.error("Can't start a search: no starting nodes")
-      super.start(target, sender, nodes){
+      super.start(target, nodes, requester){
         (trans, nextNode, _) => send(nextNode.asJava, newMessage(trans, target))
       }
     }
