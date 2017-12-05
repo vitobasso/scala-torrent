@@ -30,7 +30,7 @@ class Coordinator extends Actor with ActorLogging with Asking {
   val conf: Config = ConfigFactory.load.getConfig("scala-torrent")
   val peerPort: Int = conf.getInt("bittorrent-port ")
   val nodePort: Int = conf.getInt("dht-port ")
-  val connManager: ActorRef = createConnManagerActor(peerPort, nodePort)
+  val connManager: ActorRef = createConnManagerActor(peerPort)
 
   val torrents = mutable.Map.empty[String,(ActorRef, MetaInfo)]
 
@@ -68,7 +68,7 @@ class Coordinator extends Actor with ActorLogging with Asking {
   }
 
   private def createTorrentActor(meta: MetaInfo) = {
-    val torrentProps = Props(classOf[Torrent], meta, self, peerPort, ???)
+    val torrentProps = Props(classOf[Torrent], meta, self, peerPort, nodePort)
     context.actorOf(torrentProps, "torrent-" + meta.hash)
   }
 
@@ -82,8 +82,8 @@ class Coordinator extends Actor with ActorLogging with Asking {
     context.actorOf(props, s"handshake-in-$address")
   }
 
-  private def createConnManagerActor(peerPort: Int, nodePort: Int): ActorRef = {
-    val props = Props(classOf[ConnectionManager], peerPort, nodePort)
+  private def createConnManagerActor(peerPort: Int): ActorRef = {
+    val props = Props(classOf[ConnectionManager], peerPort)
     context.actorOf(props, "connection-manager")
   }
 
