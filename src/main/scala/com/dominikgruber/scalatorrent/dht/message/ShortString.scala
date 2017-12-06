@@ -1,5 +1,6 @@
 package com.dominikgruber.scalatorrent.dht.message
 
+import com.dominikgruber.scalatorrent.dht.SearchManager.Transaction
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 
 /**
@@ -11,7 +12,9 @@ trait ShortString[A] {
 
 object ShortString {
 
+  //users should import this method only
   def shortString[A](a: A)(implicit pp: ShortString[A]): String = pp.apply(a)
+
   def inst[A](f: A => String): ShortString[A] = new ShortString[A] {
     override def apply(a: A): String = f(a)
   }
@@ -37,6 +40,13 @@ object ShortString {
       case PeersFound(t, origin, token, peers) => s"PeersFound(${shortString(origin)}, )"
       case PeersNotFound(t, origin, token, nodes) => s"PeersNotFound(${shortString(origin)}, )"
       case _ => v.toString
+    }
+  }
+  implicit val transactionId: ShortString[TransactionId] = inst { _.toString }
+  implicit val transaction: ShortString[Transaction] = inst {
+    (v: Transaction) => v.node match {
+      case Left(address) => address.ip.toString
+      case Right(id) => shortString(id)
     }
   }
 

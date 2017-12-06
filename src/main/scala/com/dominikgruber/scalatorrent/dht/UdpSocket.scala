@@ -10,7 +10,7 @@ import akka.util.ByteString
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage.Message
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
 import com.dominikgruber.scalatorrent.dht.message.KrpcEncoding
-import com.dominikgruber.scalatorrent.dht.message.ShortString._
+import com.dominikgruber.scalatorrent.dht.message.ShortString.shortString
 
 object UdpSocket {
   case class SendToNode(message: Message, remote: InetSocketAddress)

@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import com.dominikgruber.scalatorrent.dht.SearchManager._
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import cats.syntax.either._
+import com.dominikgruber.scalatorrent.dht.message.ShortString.shortString
 
 object SearchManager {
 
@@ -84,7 +85,7 @@ class SearchManager[A <: Id20B] {
         pending -= transaction
         Right(search)
       case None =>
-        Left(s"Wasn't expecting $transaction.")
+        Left(s"Wasn't expecting ${shortString(transaction)}.")
     }
   }
 
