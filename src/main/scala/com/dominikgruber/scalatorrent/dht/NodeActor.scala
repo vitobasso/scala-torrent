@@ -152,7 +152,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       if(nodes.size > routingTable.nodesPerBucket) {
         nodes
       } else {
-        log.debug("No nodes in routing table to start a search. Will use bootstrap nodes")
+        log.info("No nodes in routing table to start a search. Will use bootstrap nodes")
         nodes ++ Bootstrap.addresses.map(_.asLeft)
       }
     }

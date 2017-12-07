@@ -26,7 +26,7 @@ class NodeActorIT extends ActorIT with Eventually {
       syncStart(Props(createActor), "node")
     }
 
-    "initialize the routing table" in {
+    "fill the routing table" in {
       table(nodeActor).nBucketsUsed shouldBe 1
 
       eventually {
