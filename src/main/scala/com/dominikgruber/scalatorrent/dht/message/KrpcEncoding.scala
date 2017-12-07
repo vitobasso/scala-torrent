@@ -26,6 +26,7 @@ object KrpcEncoding {
     case m: NodesFound => NodesFoundCodec.encode(m)
     case m: GetPeers => GetPeersCodec.encode(m)
     case m: PeersFound => PeersFoundCodec.encode(m)
+    case m: PeersFoundAndNodes => PeersFoundAndNodesCodec.encode(m)
     case m: PeersNotFound => PeersNotFoundCodec.encode(m)
     case m: AnnouncePeer => AnnouncePeerCodec.encode(m)
     case m: PeerReceived => PeerReceivedCodec.encode(m)
@@ -62,9 +63,9 @@ object KrpcEncoding {
         if(keys == Set("id")) Right(PongCodec)
         else if(keys == Set("id", "nodes")) Right(NodesFoundCodec)
         else if(keys == Set("id", "token", "values")) Right(PeersFoundCodec)
+        else if(keys == Set("id", "token", "values", "nodes")) Right(PeersFoundAndNodesCodec)
         else if(keys == Set("id", "token", "nodes")) Right(PeersNotFoundCodec)
         /* TODO handle:
-            id, nodes, token, values
             id, nodes, token, ip
             id, nodes, ip
             id, nodes, p
@@ -229,6 +230,26 @@ case object PeersFoundCodec extends ResponseCodec[PeersFound] {
       token <- decodeToken(args).right
       peers <- decodePeerInfos(args).right
     } yield PeersFound(trans, origin, token, peers)
+}
+
+case object PeersFoundAndNodesCodec extends ResponseCodec[PeersFoundAndNodes] {
+  override def encodeBody(peersFound: PeersFoundAndNodes) =
+    Map("id" -> peersFound.origin.value.unsized,
+        "token" -> peersFound.token.value,
+        "values" -> peersFound.peers
+          .map(serializePeerInfo)
+          .toList,
+        "nodes" -> peersFound.closestNodes
+          .map(serializeNodeInfo)
+          .mkString("")
+    )
+  override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeersFoundAndNodes] =
+    for {
+      origin <- decodeOriginId(args).right
+      token <- decodeToken(args).right
+      peers <- decodePeerInfos(args).right
+      nodes <- decodeNodeInfos(args).right
+    } yield PeersFoundAndNodes(trans, origin, token, peers, nodes)
 }
 
 case object PeersNotFoundCodec extends ResponseCodec[PeersNotFound] {
