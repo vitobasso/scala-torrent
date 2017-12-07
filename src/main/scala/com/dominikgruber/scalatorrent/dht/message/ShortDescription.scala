@@ -29,7 +29,7 @@ object ShortDescription {
   }
   implicit def seq[A: ShortDescription]: ShortDescription[Seq[A]] = inst { (v: Seq[A]) => show(v.toList) }
 
-  implicit def id[A <: Id20B]: ShortDescription[A] = inst { (v: A) => v.value.unsized.take(2) + "…" }
+  implicit def id[A <: Id20B]: ShortDescription[A] = inst { (v: A) => v.value.unsized.take(4) + "…" }
   implicit val peerInfo: ShortDescription[PeerInfo] = inst { (v: PeerInfo) => v.ip.toString }
   implicit val nodeInfo: ShortDescription[NodeInfo] = inst { (v: NodeInfo) => v.address.ip.toString }
   implicit val message: ShortDescription[Message] = inst {
@@ -44,11 +44,11 @@ object ShortDescription {
       case _ => v.toString
     }
   }
-  implicit val transactionId: ShortDescription[TransactionId] = inst { _.toString }
+  implicit val transactionId: ShortDescription[TransactionId] = inst { _.value.toString }
   implicit val transaction: ShortDescription[Transaction] = inst {
     (v: Transaction) => v.node match {
-      case Left(address) => address.ip.toString
-      case Right(id) => show(id)
+      case Left(address) => s"${address.ip.toString} ${show(v.id)}"
+      case Right(nodeId) => s"${show(nodeId)} ${show(v.id)}"
     }
   }
 
