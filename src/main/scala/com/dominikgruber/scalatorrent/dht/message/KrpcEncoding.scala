@@ -63,6 +63,14 @@ object KrpcEncoding {
         else if(keys == Set("id", "nodes")) Right(NodesFoundCodec)
         else if(keys == Set("id", "token", "values")) Right(PeersFoundCodec)
         else if(keys == Set("id", "token", "nodes")) Right(PeersNotFoundCodec)
+        /* TODO handle:
+            id, nodes, token, values
+            id, nodes, token, ip
+            id, nodes, ip
+            id, nodes, p
+            id, info_hash, token, implied_port
+            id, info_hash, token, port
+         */
         else Left(s"Unknown response type with keys: $keys")
       case Some(other) => Left(s"Unexpected value for key 'r': $other")
       case None => Left(s"No value for key 'r'")
@@ -80,9 +88,40 @@ object KrpcEncoding {
       }
   }
 
+
+  type Decoder[A] = Map[String, Any] => Either[String, A]
+
+  val decodeOriginId: Decoder[NodeId] = decodeNodeId("id")
+  val decodeTargetId: Decoder[NodeId] = decodeNodeId("target")
+
+  def decodeNodeId(key: String): Decoder[NodeId] =
+    decodeString(key, NodeId.validate)
+
+  def decodeNodeInfos: Decoder[Seq[NodeInfo]] =
+    decodeString("nodes", parseNodeInfos)
+
+  def decodeInfoHash: Decoder[InfoHash] =
+    decodeString("info_hash", InfoHash.validate)
+
+  def decodeToken: Decoder[Token] =
+    decodeString("token", raw => Right(Token(raw)))
+
+  type Parser[A] = String => Either[String, A]
+  def decodeString[A](key: String, parse: Parser[A]): Decoder[A] =
+    args => for {
+      raw <- args.getA[String](key).right
+      parsed <- parse(raw).right
+    } yield parsed
+
+  def decodePeerInfos: Decoder[List[PeerInfo]] =
+    args => for {
+      raw <- args.getA[List[String]]("values").right
+      parsed <- Right(raw.map(parsePeerInfo)).right
+    } yield parsed
+
 }
 
-import com.dominikgruber.scalatorrent.dht.message.KrpcEncoding.MapOps
+import KrpcEncoding._
 
 sealed trait KRPCCodec[T <: DhtMessage.Message] {
   def encode(msg: T): Map[String, Any]
@@ -127,9 +166,8 @@ case object PingCodec extends QueryCodec[Ping] {
     Map("id" -> ping.origin.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, Ping] =
     for {
-      node <- args.getA[String]("id").right
-      validNode <- NodeId.validate(node).right
-    } yield Ping(trans, validNode)
+      origin <- decodeOriginId(args).right
+    } yield Ping(trans, origin)
 }
 
 case object PongCodec extends ResponseCodec[Pong] {
@@ -137,9 +175,8 @@ case object PongCodec extends ResponseCodec[Pong] {
     Map("id" -> pong.origin.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId) =
     for {
-      node <- args.getA[String]("id").right
-      validNode <- NodeId.validate(node).right
-    } yield Pong(trans, validNode)
+      origin <- decodeOriginId(args).right
+    } yield Pong(trans, origin)
 }
 
 case object FindNodeCodec extends QueryCodec[FindNode] {
@@ -149,11 +186,9 @@ case object FindNodeCodec extends QueryCodec[FindNode] {
         "target" -> findQuery.target.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, FindNode] =
     for {
-      originNode <- args.getA[String]("id").right
-      targetNode <- args.getA[String]("target").right
-      validOriginNode <- NodeId.validate(originNode).right
-      validTargetNode <- NodeId.validate(targetNode).right
-    } yield FindNode(trans, validOriginNode, validTargetNode)
+      origin <- decodeOriginId(args).right
+      target <- decodeTargetId(args).right
+    } yield FindNode(trans, origin, target)
 }
 
 case object NodesFoundCodec extends ResponseCodec[NodesFound] {
@@ -164,11 +199,9 @@ case object NodesFoundCodec extends ResponseCodec[NodesFound] {
           .mkString(""))
   override def decodeBody(args: Map[String, Any], trans: TransactionId) =
     for {
-      node <- args.getA[String]("id").right
-      closestNodes <- args.getA[String]("nodes").right
-      validNode <- NodeId.validate(node).right
-      validClosestNodes <- parseNodeInfos(closestNodes).right
-    } yield NodesFound(trans, validNode, validClosestNodes)
+      origin <- decodeOriginId(args).right
+      nodes <- decodeNodeInfos(args).right
+    } yield NodesFound(trans, origin, nodes)
 }
 
 case object GetPeersCodec extends QueryCodec[GetPeers] {
@@ -178,11 +211,9 @@ case object GetPeersCodec extends QueryCodec[GetPeers] {
         "info_hash" -> getPeers.infoHash.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, GetPeers] =
     for {
-      originNode <- args.getA[String]("id").right
-      hash <- args.getA[String]("info_hash").right
-      validOriginNode <- NodeId.validate(originNode).right
-      validHash <- InfoHash.validate(hash).right
-    } yield GetPeers(trans, validOriginNode, validHash)
+      origin <- decodeOriginId(args).right
+      hash <- decodeInfoHash(args).right
+    } yield GetPeers(trans, origin, hash)
 }
 
 case object PeersFoundCodec extends ResponseCodec[PeersFound] {
@@ -194,13 +225,10 @@ case object PeersFoundCodec extends ResponseCodec[PeersFound] {
           .toList)
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeersFound] =
     for {
-      node <- args.getA[String]("id").right
-      token <- args.getA[String]("token").right
-      peers <- args.getA[List[String]]("values").right
-      validNode <- NodeId.validate(node).right
-      validToken <- Right(Token(token)).right
-      validPeers <- Right(peers.map(parsePeerInfo)).right
-    } yield PeersFound(trans, validNode, validToken, validPeers)
+      origin <- decodeOriginId(args).right
+      token <- decodeToken(args).right
+      peers <- decodePeerInfos(args).right
+    } yield PeersFound(trans, origin, token, peers)
 }
 
 case object PeersNotFoundCodec extends ResponseCodec[PeersNotFound] {
@@ -214,13 +242,10 @@ case object PeersNotFoundCodec extends ResponseCodec[PeersNotFound] {
     )
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeersNotFound] =
     for {
-      node <- args.getA[String]("id").right
-      token <- args.getA[String]("token").right
-      nodes <- args.getA[String]("nodes").right
-      validNode <- NodeId.validate(node).right
-      validToken <- Right(Token(token)).right
-      validNodes <- parseNodeInfos(nodes).right
-    } yield PeersNotFound(trans, validNode, validToken, validNodes)
+      origin <- decodeOriginId(args).right
+      token <- decodeToken(args).right
+      nodes <- decodeNodeInfos(args).right
+    } yield PeersNotFound(trans, origin, token, nodes)
 }
 
 case object AnnouncePeerCodec extends QueryCodec[AnnouncePeer] {
@@ -238,13 +263,11 @@ case object AnnouncePeerCodec extends QueryCodec[AnnouncePeer] {
 
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, AnnouncePeer] =
     for {
-      origin <- args.getA[String]("id").right
-      hash <- args.getA[String]("info_hash").right
+      origin <- decodeOriginId(args).right
+      hash <- decodeInfoHash(args).right
       port <- decodePort(args).right
-      token <- args.getA[String]("token").right
-      validOrigin <- NodeId.validate(origin).right
-      validHash <- InfoHash.validate(hash).right
-    } yield AnnouncePeer(trans, validOrigin, validHash, port, Token(token))
+      token <- decodeToken(args).right
+    } yield AnnouncePeer(trans, origin, hash, port, token)
 
   private def decodePort(map: Map[String, Any]): Either[String, Option[Port]] =
     map.getA[Long]("implied_port") match {
@@ -261,7 +284,6 @@ case object PeerReceivedCodec extends ResponseCodec[PeerReceived] {
     Map("id" -> announce.origin.value.unsized)
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeerReceived] =
     for {
-      node <- args.getA[String]("id").right
-      validNode <- NodeId.validate(node).right
-    } yield PeerReceived(trans, validNode)
+      origin <- decodeOriginId(args).right
+    } yield PeerReceived(trans, origin)
 }
