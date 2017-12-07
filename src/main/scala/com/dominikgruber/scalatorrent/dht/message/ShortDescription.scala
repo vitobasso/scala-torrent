@@ -30,8 +30,8 @@ object ShortDescription {
   implicit def seq[A: ShortDescription]: ShortDescription[Seq[A]] = inst { (v: Seq[A]) => show(v.toList) }
 
   implicit def id[A <: Id20B]: ShortDescription[A] = inst { (v: A) => v.value.unsized.take(2) + "…" }
-  implicit val peer: ShortDescription[PeerInfo] = inst { (v: PeerInfo) => v.ip.toString }
-  implicit val node: ShortDescription[NodeInfo] = inst { (v: NodeInfo) => v.address.ip.toString }
+  implicit val peerInfo: ShortDescription[PeerInfo] = inst { (v: PeerInfo) => v.ip.toString }
+  implicit val nodeInfo: ShortDescription[NodeInfo] = inst { (v: NodeInfo) => v.address.ip.toString }
   implicit val message: ShortDescription[Message] = inst {
     (v: Message) => v match {
       case Ping(t, origin) => show(origin)
@@ -39,6 +39,7 @@ object ShortDescription {
       case GetPeers(t, origin, hash) => s"GetPeers(${show(origin)}, ${show(hash)})"
       case NodesFound(t, origin, nodes) => s"NodesFound(${show(origin)}, ${show(nodes)})"
       case PeersFound(t, origin, token, peers) => s"PeersFound(${show(origin)}, )"
+      case PeersFoundAndNodes(t, origin, token, peers, nodes) => s"PeersFound(${show(origin)}, )"
       case PeersNotFound(t, origin, token, nodes) => s"PeersNotFound(${show(origin)}, )"
       case _ => v.toString
     }
