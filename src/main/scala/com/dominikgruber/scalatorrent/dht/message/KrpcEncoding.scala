@@ -4,10 +4,13 @@ import com.dominikgruber.scalatorrent.bencode.BencodeParser.{NoSuccess, Success}
 import com.dominikgruber.scalatorrent.bencode.{BencodeEncoder, BencodeParser}
 import com.dominikgruber.scalatorrent.dht.message.DhtBasicEncoding.{parseNodeInfos, parsePeerInfo, serializeNodeInfo, serializePeerInfo}
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.reflect.ClassTag
 
 object KrpcEncoding {
+
+  val log: Logger = LoggerFactory.getLogger(getClass)
 
   def encode[M <: Message](msg: M): Either[String, String] =
     BencodeEncoder(toMap(msg))
@@ -19,7 +22,7 @@ object KrpcEncoding {
       case NoSuccess(errorMsg, _) => Left(errorMsg)
     }
 
-  def toMap(msg: Message): Map[String, Any] = msg match {
+  private def toMap(msg: Message): Map[String, Any] = msg match {
     case m: Ping => PingCodec.encode(m)
     case m: Pong => PongCodec.encode(m)
     case m: FindNode => FindNodeCodec.encode(m)
@@ -32,7 +35,7 @@ object KrpcEncoding {
     case m: PeerReceived => PeerReceivedCodec.encode(m)
   }
 
-  def fromMap(map: Map[String, Any]): Either[String, _ <: Message] =
+  private def fromMap(map: Map[String, Any]): Either[String, _ <: Message] =
     for {
       codec <- chooseCodec(map).right
       msg <- codec.decode(map).right
@@ -46,7 +49,7 @@ object KrpcEncoding {
       case None => Left(s"No value for key 'y'")
     }
 
-  private def chooseQueryCodec(map: Map[String, Any]): Either[String, KRPCCodec[_ <: Query]] =
+  private def chooseQueryCodec(map: Map[String, Any]): Either[String, QueryCodec[_ <: Query]] =
     map.get("q") match {
       case Some("ping") => Right(PingCodec)
       case Some("find_node") => Right(FindNodeCodec)
@@ -56,26 +59,29 @@ object KrpcEncoding {
       case None => Left(s"No value for key 'q'")
     }
 
-  private def chooseResponseCodec(map: Map[String, Any]): Either[String, KRPCCodec[_ <: Message]] =
+  private def chooseResponseCodec(map: Map[String, Any]): Either[String, ResponseCodec[_ <: Response]] =
     map.get("r") match {
       case Some(rMap: Map[String, Any]) =>
-        val keys = rMap.keySet
-        if(keys == Set("id")) Right(PongCodec)
-        else if(keys == Set("id", "nodes")) Right(NodesFoundCodec)
-        else if(keys == Set("id", "token", "values")) Right(PeersFoundCodec)
-        else if(keys == Set("id", "token", "values", "nodes")) Right(PeersFoundAndNodesCodec)
-        else if(keys == Set("id", "token", "nodes")) Right(PeersNotFoundCodec)
-        /* TODO handle:
-            id, nodes, token, ip
-            id, nodes, ip
-            id, nodes, p
-            id, info_hash, token, implied_port
-            id, info_hash, token, port
-         */
-        else Left(s"Unknown response type with keys: $keys")
+        val observedKeys = rMap.keySet
+        val chooseCodec =
+          matchKeys(Set("id", "token", "values", "nodes"), PeersFoundAndNodesCodec) orElse
+          matchKeys(Set("id", "token", "values"), PeersFoundCodec) orElse
+          matchKeys(Set("id", "token", "nodes"), PeersNotFoundCodec) orElse
+          matchKeys(Set("id", "nodes"), NodesFoundCodec) orElse
+          matchKeys(Set("id"), PongCodec)
+        chooseCodec.andThen(Right(_))
+          .applyOrElse(observedKeys, (other: Set[String]) => Left(s"Unexpected value for key 'r': $other"))
       case Some(other) => Left(s"Unexpected value for key 'r': $other")
       case None => Left(s"No value for key 'r'")
     }
+
+  private def matchKeys(requiredKeys: Set[String], codec: ResponseCodec[_ <: Response])
+  : PartialFunction[Set[String], ResponseCodec[_ <: Response]] = {
+    case observedKeys: Set[String] if requiredKeys.forall(observedKeys.contains) =>
+      val unexpectedKeys = observedKeys -- requiredKeys
+      if(unexpectedKeys.nonEmpty) log.warn(s"Discarded unknown keys in response: ${unexpectedKeys.mkString(", ")}")
+      codec
+  }
 
   implicit class MapOps(map: Map[String, Any]) {
     def getA[T: ClassTag](key: String): Either[String, T] =
