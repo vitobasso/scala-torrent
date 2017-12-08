@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxMonadCombineSeparate
 import cats.instances.either._
 import cats.instances.list._
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
+import com.dominikgruber.scalatorrent.dht.message.ShortDescription.show
 import org.slf4j.{Logger, LoggerFactory}
 
 /**
@@ -28,6 +29,7 @@ object Bootstrap {
   lazy val addresses: List[Address] = {
     val (errors, nodes) = names.map(createNode).separate
     errors.foreach(log.warn)
+    log.info(s"Using bootstrap nodes: ${nodes.map(show(_)).mkString(", ")}")
     nodes
   }
 

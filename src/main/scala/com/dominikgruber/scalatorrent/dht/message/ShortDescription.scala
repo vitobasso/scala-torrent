@@ -2,6 +2,7 @@ package com.dominikgruber.scalatorrent.dht.message
 
 import com.dominikgruber.scalatorrent.dht.SearchManager.Transaction
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
+import com.dominikgruber.scalatorrent.util.ByteUtil.Hex
 
 /**
   * Concise textual representation of [[A]] omitting verbose information
@@ -24,12 +25,12 @@ object ShortDescription {
     (v: List[A]) => v match {
       case Nil => "ø"
       case first :: Nil => elm(first)
-      case first :: rest => elm(first) + s"…+${rest.size}"
+      case first :: rest => elm(first) + s"(+${rest.size})"
     }
   }
   implicit def seq[A: ShortDescription]: ShortDescription[Seq[A]] = inst { (v: Seq[A]) => show(v.toList) }
 
-  implicit def id[A <: Id20B]: ShortDescription[A] = inst { (v: A) => v.value.unsized.take(4) + "…" }
+  implicit def id[A <: Id20B]: ShortDescription[A] = inst { (v: A) => Hex(v.value.unsized.take(2)) + "…" }
   implicit val peerInfo: ShortDescription[PeerInfo] = inst { (v: PeerInfo) => v.ip.toString }
   implicit val nodeInfo: ShortDescription[NodeInfo] = inst { (v: NodeInfo) => v.address.ip.toString }
   implicit val message: ShortDescription[Message] = inst {
@@ -44,11 +45,11 @@ object ShortDescription {
       case _ => v.toString
     }
   }
-  implicit val transactionId: ShortDescription[TransactionId] = inst { _.value.toString }
+  implicit val transactionId: ShortDescription[TransactionId] = inst { v => Hex(v.value) }
   implicit val transaction: ShortDescription[Transaction] = inst {
     (v: Transaction) => v.node match {
-      case Left(address) => s"${address.ip.toString} ${show(v.id)}"
-      case Right(nodeId) => s"${show(nodeId)} ${show(v.id)}"
+      case Left(address) => s"${address.ip.toString}-${show(v.id)}"
+      case Right(nodeId) => s"${show(nodeId)}-${show(v.id)}"
     }
   }
 
