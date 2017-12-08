@@ -16,6 +16,7 @@ object ByteUtil {
     def apply(buf: Vector[Byte]): String = apply(buf.toArray)
     def apply(buf: ArrayBuffer[Byte]): String = apply(buf.toArray)
     def apply(buf: ByteString): String = apply(buf.toArray)
+    def apply(str: String): String = apply(str.getBytes(ISO_8859_1))
   }
 
   def bytes(str: String): Bytes =
