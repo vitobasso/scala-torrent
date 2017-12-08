@@ -95,40 +95,10 @@ object KrpcEncoding {
       }
   }
 
-
-  type Decoder[A] = Map[String, Any] => Either[String, A]
-
-  val decodeOriginId: Decoder[NodeId] = decodeNodeId("id")
-  val decodeTargetId: Decoder[NodeId] = decodeNodeId("target")
-
-  def decodeNodeId(key: String): Decoder[NodeId] =
-    decodeString(key, NodeId.validate)
-
-  def decodeNodeInfos: Decoder[Seq[NodeInfo]] =
-    decodeString("nodes", parseNodeInfos)
-
-  def decodeInfoHash: Decoder[InfoHash] =
-    decodeString("info_hash", InfoHash.validate)
-
-  def decodeToken: Decoder[Token] =
-    decodeString("token", raw => Right(Token(raw)))
-
-  type Parser[A] = String => Either[String, A]
-  def decodeString[A](key: String, parse: Parser[A]): Decoder[A] =
-    args => for {
-      raw <- args.getA[String](key).right
-      parsed <- parse(raw).right
-    } yield parsed
-
-  def decodePeerInfos: Decoder[List[PeerInfo]] =
-    args => for {
-      raw <- args.getA[List[String]]("values").right
-      parsed <- Right(raw.map(parsePeerInfo)).right
-    } yield parsed
-
 }
 
 import KrpcEncoding._
+import DecoderUtil._
 
 sealed trait KRPCCodec[T <: DhtMessage.Message] {
   def encode(msg: T): Map[String, Any]
@@ -313,4 +283,38 @@ case object PeerReceivedCodec extends ResponseCodec[PeerReceived] {
     for {
       origin <- decodeOriginId(args).right
     } yield PeerReceived(trans, origin)
+}
+
+object DecoderUtil {
+
+  type Decoder[A] = Map[String, Any] => Either[String, A]
+
+  val decodeOriginId: Decoder[NodeId] = decodeNodeId("id")
+  val decodeTargetId: Decoder[NodeId] = decodeNodeId("target")
+
+  def decodeNodeId(key: String): Decoder[NodeId] =
+    decodeString(key, NodeId.validate)
+
+  def decodeNodeInfos: Decoder[Seq[NodeInfo]] =
+    decodeString("nodes", parseNodeInfos)
+
+  def decodeInfoHash: Decoder[InfoHash] =
+    decodeString("info_hash", InfoHash.validate)
+
+  def decodeToken: Decoder[Token] =
+    decodeString("token", raw => Right(Token(raw)))
+
+  type Parser[A] = String => Either[String, A]
+  def decodeString[A](key: String, parse: Parser[A]): Decoder[A] =
+    args => for {
+      raw <- args.getA[String](key).right
+      parsed <- parse(raw).right
+    } yield parsed
+
+  def decodePeerInfos: Decoder[List[PeerInfo]] =
+    args => for {
+      raw <- args.getA[List[String]]("values").right
+      parsed <- Right(raw.map(parsePeerInfo)).right
+    } yield parsed
+
 }
