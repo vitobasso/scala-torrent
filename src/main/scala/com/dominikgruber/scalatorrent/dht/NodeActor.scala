@@ -163,7 +163,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
   private def createUdpSocketActor: ActorRef = {
     val props = Props(classOf[UdpSocket], self, port)
     val nodeIdStr = SelfInfo.nodeId.toString.replace("(", ":").replace(" ", ":").replace(")", "")
-    context.actorOf(props, s"udp-socket-$nodeIdStr")
+    context.actorOf(props, s"udp-socket")
   }
 
 }
