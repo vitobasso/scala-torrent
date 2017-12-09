@@ -19,13 +19,11 @@ import cats.syntax.either._
   */
 case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLogging {
 
-
   val routingTable = RoutingTable(selfNode) //TODO persist
   val peerMap = PeerMap() //TODO persist
   lazy val udp: ActorRef = createUdpSocketActor //lazy prevents init before overwrite from test
 
-  val peerSearches = PeersSearches
-  val nodeSearches = NodeSearches
+  val searches = Searches
 
   override def preStart(): Unit = {
     udp //trigger lazy init
@@ -35,9 +33,9 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
   override def receive: Receive = {
     case SearchNode(id) =>
-      nodeSearches.start(id, sender)
+      searches.start(id, sender)
     case SearchPeers(hash) =>
-      peerSearches.start(hash, sender)
+      searches.start(hash, sender)
     case AddNode(info) =>
       routingTable.add(info)
     case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
@@ -55,8 +53,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
         log.error(s"Received dht error $code: $message")
     }
     case CleanInactiveSearches =>
-      nodeSearches.cleanInactive()
-      peerSearches.cleanInactive()
+      searches.cleanInactive()
       considerSearchingNewNodes() //maybe a previous node search timed out, let's try again
   }
 
@@ -73,13 +70,13 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
     case Pong(trans, origin) =>
       //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
-      nodeSearches.continue(trans, info, nodes)
+      searches.continue(trans, info, nodes)
     case PeersFound(trans, origin, token, peers) =>
       reportPeersFound(trans, info, peers)
     case PeersFoundAndNodes(trans, origin, token, peers, nodes) => //TODO do something with nodes
       reportPeersFound(trans, info, peers)
     case PeersNotFound(trans, origin, token, nodes) =>
-      peerSearches.continue(trans, info, nodes)
+      searches.continue(trans, info, nodes)
   }
 
   private def send(remote: InetSocketAddress, message: Message): Unit =
@@ -92,10 +89,11 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
     }
 
   private def reportPeersFound(trans: TransactionId, origin: NodeInfo, peers: Seq[PeerInfo]): Unit =
-    peerSearches.remember(origin, trans) match {
-      case Right(search) =>
-        peerMap.add(search.target, peers.toSet)
-        search.requester ! NodeActor.FoundPeers(search.target, peers)
+    searches.remember(origin, trans) match {
+      case Right(Search(target: InfoHash, requester)) =>
+        peerMap.add(target, peers.toSet)
+        requester ! NodeActor.FoundPeers(target, peers)
+      case Right(search) => log.warning(s"Can't report peers found: This transaction was in a search for ${search.target}")
       case Left(err) => log.warning(s"Can't report peers found: $err")
     }
 
@@ -123,7 +121,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
   private def considerSearchingNewNodes(): Unit = {
     val tableIsAlmostEmpty = routingTable.nBucketsUsed == 1
-    val notSearchingYet = nodeSearches.isInactive
+    val notSearchingYet = searches.isInactive
     if (tableIsAlmostEmpty && notSearchingYet) {
       log.info("Performing node search to fill in routing table")
       self ! SearchNode(selfNode)
@@ -135,19 +133,17 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       self ! CleanInactiveSearches
     }(context.dispatcher)
 
-  trait Searches[A <: Id20B] extends SearchManager[A] {
+  object Searches extends SearchManager(selfNode) {
 
-    def newMessage(newTrans: TransactionId, target: A): Message
-
-    def start(target: A, requester: ActorRef): Unit = {
+    def start(target: Id20B, requester: ActorRef): Unit = {
       val nodes: Seq[NodeInfoOrAddress] = nodesToStart(target)
       if(nodes.isEmpty) log.error("Can't start a search: no starting nodes")
       super.start(target, nodes, requester){
-        (trans, nextNode, _) => send(nextNode.asJava, newMessage(trans, target))
+        (nextNode, query) => send(nextNode.asJava, query)
       }
     }
 
-    private def nodesToStart(target: A): Seq[NodeInfoOrAddress] = {
+    private def nodesToStart(target: Id20B): Seq[NodeInfoOrAddress] = {
       val nodes: Seq[NodeInfoOrAddress] = routingTable.findClosestNodes(target).map(_.asRight)
       if(nodes.size > routingTable.nodesPerBucket) {
         nodes
@@ -159,19 +155,11 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
     def continue(trans: TransactionId, origin: NodeInfo, newNodes: Seq[NodeInfo]): Unit =
       super.continue(trans, origin, newNodes){
-        (newTrans, nextNode, target) => send(nextNode.asJava, newMessage(newTrans, target))
+        (nextNode, query) => send(nextNode.asJava, query)
       }.left.foreach { err =>
         log.warning(s"Can't continue search: $err")
       }
 
-  }
-  case object NodeSearches extends Searches[NodeId] {
-    override def newMessage(newTrans: TransactionId, target: NodeId): Message =
-      FindNode(newTrans, selfNode, target)
-  }
-  case object PeersSearches extends Searches[InfoHash] {
-    override def newMessage(newTrans: TransactionId, target: InfoHash): Message =
-      GetPeers(newTrans, selfNode, target)
   }
 
   private def createUdpSocketActor: ActorRef = {

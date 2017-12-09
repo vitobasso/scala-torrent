@@ -64,7 +64,6 @@ class KrpcEncodingSpec extends UnitSpec {
     msg = NodesFound(transactionId, localNode, nodes)
   )
 
-
   val infoHash: InfoHash = InfoHash.validate("mnopqrstuvwxyz123456").right.get
 
   testCase("GetPeers",
@@ -103,6 +102,13 @@ class KrpcEncodingSpec extends UnitSpec {
   }
   it should "be decoded" in {
     KrpcEncoding.decode(rawPeerReceived) shouldBe Right(Pong(transactionId, remoteNode)) //FIXME a raw Pong is identical to AnnouncePeerResponse
+  }
+
+  val unknown = "7:unknown5:value"
+  "NodesFound + unknown field" should "be decoded" in {
+    val raw = s"d1:rd2:id20:abcdefghij01234567895:nodes52:$rawNodes${unknown}e1:t2:aa1:y1:re"
+    val msg = NodesFound(transactionId, localNode, nodes)
+    KrpcEncoding.decode(raw) shouldBe Right(msg)
   }
 
   def nodeId(str: String): NodeId = NodeId.validate(str).right.get

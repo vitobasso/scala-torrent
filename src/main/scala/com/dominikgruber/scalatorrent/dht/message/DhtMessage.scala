@@ -48,6 +48,7 @@ object DhtMessage {
   case class NodeId(value: String20) extends Id20B {
     override def equals(other: scala.Any): Boolean = other match {
       case NodeId(otherValue) => value.unsized == otherValue.unsized
+      case _ => false
     }
   }
   object NodeId extends Id20BCompanion[NodeId]
@@ -59,6 +60,7 @@ object DhtMessage {
   case class InfoHash(value: String20) extends Id20B  {
     override def equals(other: scala.Any): Boolean = other match {
       case InfoHash(otherValue) => value.unsized == otherValue.unsized
+      case _ => false
     }
   }
   object InfoHash extends Id20BCompanion[InfoHash]
