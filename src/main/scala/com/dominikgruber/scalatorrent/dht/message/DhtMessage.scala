@@ -29,6 +29,11 @@ object DhtMessage {
   }
   sealed trait Id20BCompanion[A] {
     def apply(value: String20): A
+    def validateHex(hex: String): Either[String, A] = {
+      val hashBytes = ByteUtil.bytes(hex)
+      val hashStr = new String(hashBytes, ISO_8859_1)
+      validate(hashStr)
+    }
     def validate(value: String): Either[String, A] =
       value.sized[_20]
         .toRight(s"Value must be 20 chars long, but was ${value.length}.")
