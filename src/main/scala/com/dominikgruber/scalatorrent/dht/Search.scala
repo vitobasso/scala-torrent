@@ -7,6 +7,25 @@ import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
 
+/**
+  * Keeps track of a search and the closest distance reached so far
+  * @param target [[NodeId]] or [[InfoHash]]
+  * @param requester actor listening for results
+  */
+case class Search(target: Id20B, requester: ActorRef) {
+
+  private var status: RequestStatus = RequestStatus.fresh
+
+  def closerNodes(origin: NodeId, newNodes: Seq[NodeInfo]): Seq[NodeInfo] = {
+    val closest = status.closestSoFar min origin.distance(target)
+    status = status.updated(closest)
+    newNodes.filter(_.id.distance(target) < status.closestSoFar)
+  }
+
+  def isActive: Boolean = status.isActive
+
+}
+
 case object Search {
 
   val TimeToLive: FiniteDuration = 1 minute
@@ -25,24 +44,5 @@ case object Search {
   }
 
   def now: Long = System.currentTimeMillis
-
-}
-
-/**
-  * Keeps track of a search and the closest distance reached so far
-  * @param target [[NodeId]] or [[InfoHash]]
-  * @param requester actor listening for results
-  */
-case class Search[A <: Id20B](target: A, requester: ActorRef) {
-
-  private var status: RequestStatus = RequestStatus.fresh
-
-  def closerNodes(origin: NodeId, newNodes: Seq[NodeInfo]): Seq[NodeInfo] = {
-    val closest = status.closestSoFar min origin.distance(target)
-    status = status.updated(closest)
-    newNodes.filter(_.id.distance(target) < status.closestSoFar)
-  }
-
-  def isActive: Boolean = status.isActive
 
 }
