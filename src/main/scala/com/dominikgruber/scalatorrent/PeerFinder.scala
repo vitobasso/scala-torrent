@@ -47,11 +47,12 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     case FoundPeers(_, peers) => // from NodeActor
       def getAddress(info: PeerInfo): PeerAddress = PeerAddress(info.ip.toString, info.port.toInt)
       val peerAddresses = peers.map(getAddress).toSet
+      log.info(s"Found peers from DHT: ${peerAddresses.mkString(", ")}")
       torrent ! PeersFound(peerAddresses)
 
     case s: TrackerResponseWithSuccess => // from Tracker
-      log.debug(s"Request to Tracker successful: $s")
       val uniqueAddresses: Set[PeerAddress] = s.peers.map(_.address).toSet
+      log.info(s"Found peers from tracker: ${uniqueAddresses.mkString(", ")}")
       torrent ! PeersFound(uniqueAddresses)
 
     case f: TrackerResponseWithFailure =>
@@ -72,14 +73,13 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     }
     val escapedUrl = peerUrl.replaceAll("/", "_")
     props.map {
-      context.actorOf(_, s"tracker-$escapedUrl-${meta.hash}")
+      context.actorOf(_, s"tracker-$escapedUrl")
     }
   }
 
   private def createNodeActor: ActorRef = {
     val props = Props(classOf[NodeActor], SelfInfo.nodeId, nodePortIn)
-    val hex = Hex(SelfInfo.nodeId.value.unsized).replaceAll(" ", "")
-    context.actorOf(props, s"node-actor-$hex")
+    context.actorOf(props, s"dht-node")
   }
 
   private def trackerAddrs: Seq[String] =

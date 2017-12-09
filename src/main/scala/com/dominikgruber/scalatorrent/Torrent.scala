@@ -101,7 +101,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
 
   private def createPeerFinderActor() = {
     val props = Props(classOf[PeerFinder], meta, peerPortIn, nodePortIn, self)
-    context.actorOf(props, s"peer-finder-${meta.hash}")
+    context.actorOf(props, s"peer-finder")
   }
 
   private def createPeerSharingActor(peerConn: ActorRef, peer: Peer) = {
@@ -111,7 +111,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
 
   private def createStorageActor(): ActorRef = {
     val props = Props(classOf[Storage], meta.fileInfo)
-    context.actorOf(props, s"storage-${meta.hash}")
+    context.actorOf(props, s"storage")
   }
 
 }
