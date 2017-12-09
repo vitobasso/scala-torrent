@@ -13,6 +13,7 @@ import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.{SendEventStarted, TrackerConnectionFailed}
 import com.dominikgruber.scalatorrent.tracker.http.{HttpTracker, TrackerResponseWithFailure, TrackerResponseWithSuccess}
 import com.dominikgruber.scalatorrent.tracker.udp.UdpTracker
+import com.dominikgruber.scalatorrent.util.ByteUtil.Hex
 
 import scala.util.matching.Regex
 
@@ -37,7 +38,8 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
   override def receive: Receive = {
     case FindPeers =>
       trackers.foreach { _ ! SendEventStarted(0, 0) }
-      InfoHash.validate(meta.hash) match { //TODO validate earlier on MetaInfo creation
+      val hex = meta.hash.grouped(2).mkString(" ")
+      InfoHash.validateHex(hex) match { //TODO validate earlier on MetaInfo creation
         case Right(hash) => node ! SearchPeers(hash)
         case Left(err) => log.error(s"Invalid torrent hash: $err")
       }
@@ -76,7 +78,8 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
 
   private def createNodeActor: ActorRef = {
     val props = Props(classOf[NodeActor], SelfInfo.nodeId, nodePortIn)
-    context.actorOf(props, s"node-actor-${SelfInfo.nodeId}")
+    val hex = Hex(SelfInfo.nodeId.value.unsized).replaceAll(" ", "")
+    context.actorOf(props, s"node-actor-$hex")
   }
 
   private def trackerAddrs: Seq[String] =
