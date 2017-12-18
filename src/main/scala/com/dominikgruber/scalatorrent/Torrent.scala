@@ -12,7 +12,8 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.Se
 import com.dominikgruber.scalatorrent.peerwireprotocol.{PeerSharing, TransferState}
 import com.dominikgruber.scalatorrent.storage.Storage
 import com.dominikgruber.scalatorrent.storage.Storage._
-import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
+import com.dominikgruber.scalatorrent.tracker.Peer
+import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.BitSet
 
@@ -41,26 +42,34 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
     storage ! StatusPlease
   }
 
-  override def receive: Receive = catchingUp
+  override def receive: Receive = initializing
 
-  def catchingUp: Receive = {
+  def initializing: Receive = {
     case Status(piecesWeHave) =>
       log.info(s"Resuming with ${piecesWeHave.size} pieces out of ${meta.fileInfo.numPieces}")
       piecesWeHave foreach transferState.markPieceCompleted
       peerFinder ! FindPeers
-      context become sharing
+      context become ready
     case Complete =>
       //TODO seed
   }
 
-  def sharing: Receive = {
+  def ready: Receive =
+    acceptingNewPeers orElse
+    sharing orElse
+    reportingProgress
 
-    case PeersFound(peers) => connectToPeers(peers)
-
+  def acceptingNewPeers: Receive = {
+    case PeersFound(peers) =>
+      peers.foreach {
+        peer => coordinator ! ConnectToPeer(peer, meta)
+      }
     case PeerReady(peerConn, peer) => // from HandshakeActor
       val peerSharing = createPeerSharingActor(peerConn, peer)
       peerConn ! SetListener(peerSharing)
+  }
 
+  def sharing: Receive = {
     case AreWeInterested(piecesAvailable) => // from PeerSharing
       if(transferState.isAnyPieceNewIn(piecesAvailable))
         sender ! SendToPeer(Interested())
@@ -72,19 +81,22 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
       //TODO validate numbers received
       transferState
         .addBlock(piece.index, piece.begin/BlockSize, piece.block.toArray)
-        .foreach { completePiece =>
-          if(checksum(piece.index, completePiece))
-            storage ! Store(piece.index, completePiece)
-          else {
-            log.warning(s"Checksum failed for piece ${piece.index}.")
-            transferState.resetPiece(piece.index)
-          }
-        }
+        .foreach { checkAndStore(piece.index, _) } //if piece is now complete
       requestNewBlocks(piecesAvailable, sender)
+  }
 
-    case ReportPlease =>
+  def reportingProgress: Receive = {
+    case ReportPlease => // from ProgressReporting
       sender ! transferState.report
   }
+
+  def checkAndStore(index: Int, bytes: Bytes): Unit =
+    if(checksum(index, bytes))
+      storage ! Store(index, bytes)
+    else {
+      log.warning(s"Checksum failed for piece $index.")
+      transferState.resetPiece(index)
+    }
 
   def requestNewBlocks(piecesAvailable: BitSet, peerSharing: ActorRef): Unit = {
     transferState.forEachNewRequest(piecesAvailable) {
@@ -93,11 +105,6 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
       peerSharing ! NothingToRequest
     }
   }
-
-  def connectToPeers(peers: Set[PeerAddress]): Unit =
-    peers.foreach{
-      peer => coordinator ! ConnectToPeer(peer, meta)
-    }
 
   private def createPeerFinderActor() = {
     val props = Props(classOf[PeerFinder], meta, peerPortIn, nodePortIn, self)
