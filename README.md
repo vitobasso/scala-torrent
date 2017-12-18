@@ -14,7 +14,7 @@ protocols and DHT's. Was able to download a whole movie and watch it :)
 ### Progress
 
 * [✔] Bencode
-* [✔] Talk with HTTP trackers
+* [✔] Talk to HTTP trackers
 * Peer Wire Protocol
   * [✔] Message models & encoding
   * [✔] Handshake
@@ -24,8 +24,17 @@ protocols and DHT's. Was able to download a whole movie and watch it :)
   * [✔] Pipelining
   * [TODO] Piece selection strategies
   * [TODO] Choking
-* [✔] Reconstruct files
-* [✔] Talk with UDP trackers
-* [in progress] Distributed Hash Table (Kademlia)
-* [TODO] Add new torrents via cli
+* [✔] Reconstruct & persist files
+* [✔] Talk to UDP trackers
+* Distributed Hash Table (Kademlia)
+  * [✔] Message models & encoding (KRPC)
+  * [✔] Routing table
+  * [✔] Bootstrap nodes
+  * [✔] Search peers & nodes
+  * [TODO] Persist peer infos
+  * [TODO] Announce peer
+* CLI
+  * [✔] Show progress
+  * [TODO] Choose torrent file
+  * [TODO] Choose magnet
 
