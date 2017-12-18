@@ -1,6 +1,7 @@
 package com.dominikgruber.scalatorrent.metainfo
 
 import com.dominikgruber.scalatorrent.bencode.BencodeEncoder
+import com.dominikgruber.scalatorrent.util.ByteUtil
 
 import scala.collection.mutable
 
@@ -73,6 +74,8 @@ sealed trait FileMetaInfo
     * This is purely advisory
     */
   val name: String
+
+  override def toString: String = ByteUtil.Hex(infoHash)
 }
 
 case class SingleFileMetaInfo

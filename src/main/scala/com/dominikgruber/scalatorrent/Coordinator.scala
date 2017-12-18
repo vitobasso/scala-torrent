@@ -89,7 +89,11 @@ class Coordinator extends Actor with ActorLogging with Asking {
 
   private def createConnRequestTempActor(peer: PeerAddress, meta: MetaInfo, torrent: ActorRef): ActorRef = {
     val props = Props(new PeerConnRequestActor(peer, meta, torrent))
-    context.actorOf(props, s"temp-peer-connection-request-$peer-${meta.hash}")
+    val name = s"temp-peer-connection-request-$peer-${meta.hash}"
+    context.child(name) match { //TODO also check existing (established) PeerConnection?
+      case Some(existing) => existing
+      case None => context.actorOf(props, name)
+    }
   }
 
   class PeerConnRequestActor(peer: PeerAddress, meta: MetaInfo, torrent: ActorRef)

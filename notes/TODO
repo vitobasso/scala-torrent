@@ -14,7 +14,7 @@
     repeat request to tracker
 
 - test
-    receive duplicate peers from Tracker
+    receive duplicate peers from Tracker (crashes Torrent actor, causing dead letters)
     coordinator actor
     storage: validations
     TransferStatus: pending requests, ttl, forEachNewRequest
