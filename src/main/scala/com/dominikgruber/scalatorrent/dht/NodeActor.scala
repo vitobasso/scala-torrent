@@ -3,7 +3,7 @@ package com.dominikgruber.scalatorrent.dht
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import com.dominikgruber.scalatorrent.SelfInfo
+import cats.syntax.either._
 import com.dominikgruber.scalatorrent.dht.NodeActor._
 import com.dominikgruber.scalatorrent.dht.SearchManager.NodeInfoOrAddress
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
@@ -11,7 +11,6 @@ import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import cats.syntax.either._
 
 /**
   * A node in a DHT network
@@ -36,7 +35,15 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       Searches.start(hash, sender)
     case AddNode(info) =>
       routingTable.add(info)
-    case ReceivedFromNode(msg, remote) => msg match { //from UdpSocket
+    case ReceivedFromNode(msg, remote) => //from UdpSocket
+      handleNodeMessage(msg, remote)
+    case CleanInactiveSearches =>
+      Searches.cleanInactive()
+      considerDiscoveringNewNodes() //maybe a previous node search timed out, let's try again
+  }
+
+  private def handleNodeMessage(message: Message, remote: InetSocketAddress): Unit =
+    message match {
       case q: Query =>
         handleQuery(q, remote)
         resolveOrigin(q.origin, remote) {
@@ -50,10 +57,6 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       case Error(_, code, message) =>
         log.error(s"Received dht error $code: $message")
     }
-    case CleanInactiveSearches =>
-      Searches.cleanInactive()
-      considerDiscoveringNewNodes() //maybe a previous node search timed out, let's try again
-  }
 
   private def handleQuery(msg: Query, remote: InetSocketAddress): Unit = msg match {
     case Ping(trans, origin) =>
@@ -162,7 +165,6 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
   private def createUdpSocketActor: ActorRef = {
     val props = Props(classOf[UdpSocket], self, port)
-    val nodeIdStr = SelfInfo.nodeId.toString.replace("(", ":").replace(" ", ":").replace(")", "")
     context.actorOf(props, s"udp-socket")
   }
 
