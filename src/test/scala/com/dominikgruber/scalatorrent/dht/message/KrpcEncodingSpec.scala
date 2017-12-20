@@ -77,12 +77,22 @@ class KrpcEncodingSpec extends UnitSpec {
 
   testCase("PeersFound",
     raw = s"d1:rd2:id20:abcdefghij01234567895:token8:aoeusnth6:values${rawPeers}e1:t2:aa1:y1:re",
-    msg = PeersFound(transactionId, localNode, token, peers)
+    msg = PeersFound(transactionId, localNode, Some(token), peers, Seq.empty)
   )
 
-  testCase("PeersFoundAndNodes",
+  testCase("PeersFound + nodes",
     raw = s"d1:rd2:id20:abcdefghij01234567895:nodes52:${rawNodes}5:token8:aoeusnth6:values${rawPeers}e1:t2:aa1:y1:re",
-    msg = PeersFoundAndNodes(transactionId, localNode, token, peers, nodes)
+    msg = PeersFound(transactionId, localNode, Some(token), peers, nodes)
+  )
+
+  testCase("PeersFound, + nodes, no token",
+    raw = s"d1:rd2:id20:abcdefghij01234567895:nodes52:${rawNodes}6:values${rawPeers}e1:t2:aa1:y1:re",
+    msg = PeersFound(transactionId, localNode, None, peers, nodes)
+  )
+
+  testCase("PeersFound, no token",
+    raw = s"d1:rd2:id20:abcdefghij01234567896:values${rawPeers}e1:t2:aa1:y1:re",
+    msg = PeersFound(transactionId, localNode, None, peers, Seq.empty)
   )
 
   testCase("PeersNotFound",

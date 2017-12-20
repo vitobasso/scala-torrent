@@ -112,7 +112,7 @@ class NodeActorSearchPeersSpec extends NodeActorSpec {
   }
 
   def peersFound(trans: TransactionId, origin: NodeId, peers: PeerInfo): ReceivedFromNode = {
-    val found = PeersFound(trans, origin, Token(""), Seq(peers))
+    val found = PeersFound(trans, origin, None, Seq(peers), Seq.empty)
     ReceivedFromNode(found, mock[InetSocketAddress])
   }
 

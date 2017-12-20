@@ -5,6 +5,7 @@ import com.dominikgruber.scalatorrent.bencode.{BencodeEncoder, BencodeParser}
 import com.dominikgruber.scalatorrent.dht.message.DhtBasicEncoding.{parseNodeInfos, parsePeerInfo, serializeNodeInfo, serializePeerInfo}
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
 import org.slf4j.{Logger, LoggerFactory}
+import cats.syntax.either._
 
 import scala.reflect.ClassTag
 
@@ -29,7 +30,6 @@ object KrpcEncoding {
     case m: NodesFound => NodesFoundCodec.encode(m)
     case m: GetPeers => GetPeersCodec.encode(m)
     case m: PeersFound => PeersFoundCodec.encode(m)
-    case m: PeersFoundAndNodes => PeersFoundAndNodesCodec.encode(m)
     case m: PeersNotFound => PeersNotFoundCodec.encode(m)
     case m: AnnouncePeer => AnnouncePeerCodec.encode(m)
     case m: PeerReceived => PeerReceivedCodec.encode(m)
@@ -64,26 +64,30 @@ object KrpcEncoding {
       case Some(rMap: Map[String, Any]) =>
         val observedKeys = rMap.keySet
         val chooseCodec =
-          matchKeys(Set("id", "token", "values", "nodes"), PeersFoundAndNodesCodec) orElse
-          matchKeys(Set("id", "token", "values"), PeersFoundCodec) orElse
-          matchKeys(Set("id", "token", "nodes"), PeersNotFoundCodec) orElse
-          matchKeys(Set("id", "nodes"), NodesFoundCodec) orElse
-          matchKeys(Set("id"), PongCodec)
+          matchKeys(PeersFoundCodec, Set("id", "values"), Set("nodes", "token")) orElse
+          matchKeys(PeersNotFoundCodec, Set("id", "token", "nodes")) orElse
+          matchKeys(NodesFoundCodec, Set("id", "nodes")) orElse
+          matchKeys(PongCodec, Set("id"))
         chooseCodec.andThen(Right(_))
           .applyOrElse(observedKeys, (other: Set[String]) => Left(s"Unexpected value for key 'r': $other"))
       case Some(other) => Left(s"Unexpected value for key 'r': $other")
       case None => Left(s"No value for key 'r'")
     }
 
-  private def matchKeys(requiredKeys: Set[String], codec: ResponseCodec[_ <: Response])
+  private def matchKeys(codec: ResponseCodec[_ <: Response], requiredKeys: Set[String], optionalKeys: Set[String] = Set.empty)
   : PartialFunction[Set[String], ResponseCodec[_ <: Response]] = {
     case observedKeys: Set[String] if requiredKeys.forall(observedKeys.contains) =>
-      val unexpectedKeys = observedKeys -- requiredKeys
-      if(unexpectedKeys.nonEmpty) log.warn(s"Discarded unknown keys in response: ${unexpectedKeys.mkString(", ")}")
+      val unexpectedKeys = observedKeys -- (requiredKeys ++ optionalKeys)
+      if(unexpectedKeys.nonEmpty) {
+        val mag = s"Discarded unknown keys in response: ${unexpectedKeys.mkString(", ")}. " +
+                  s"Chosen codec: ${codec.getClass.getSimpleName}."
+        log.warn(mag)
+      }
       codec
   }
 
   implicit class MapOps(map: Map[String, Any]) {
+
     def getA[T: ClassTag](key: String): Either[String, T] =
       map.get(key) match {
         case Some(value: T) => Right(value)
@@ -93,6 +97,16 @@ object KrpcEncoding {
           Left(s"Expected $expectedType but $key=$unexpected is a $actualType")
         case None => Left(s"No value for key '$key'")
       }
+
+    def appendOption(key: String, opt: Option[String]): Map[String, Any] =
+      opt match {
+        case Some(value) => map + (key -> value)
+        case None => map
+      }
+
+    def appendIfNonEmpty(key: String, str: String): Map[String, Any] =
+      if(str.isEmpty) map
+      else map + (key -> str)
   }
 
 }
@@ -194,38 +208,26 @@ case object GetPeersCodec extends QueryCodec[GetPeers] {
 }
 
 case object PeersFoundCodec extends ResponseCodec[PeersFound] {
-  override def encodeBody(peersFound: PeersFound) =
-    Map("id" -> peersFound.origin.value.unsized,
-        "token" -> peersFound.token.value,
+  override def encodeBody(peersFound: PeersFound) = {
+    val mandatoryFields =
+      Map("id" -> peersFound.origin.value.unsized,
         "values" -> peersFound.peers
           .map(serializePeerInfo)
           .toList)
+    val token: Option[String] = peersFound.token.map(_.value)
+    val nodes: String = peersFound.closestNodes.map(serializeNodeInfo).mkString("")
+    mandatoryFields
+      .appendOption("token", token)
+      .appendIfNonEmpty("nodes", nodes)
+  }
   override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeersFound] =
     for {
       origin <- decodeOriginId(args).right
-      token <- decodeToken(args).right
+      token = decodeToken(args).toOption
       peers <- decodePeerInfos(args).right
-    } yield PeersFound(trans, origin, token, peers)
-}
-
-case object PeersFoundAndNodesCodec extends ResponseCodec[PeersFoundAndNodes] {
-  override def encodeBody(peersFound: PeersFoundAndNodes) =
-    Map("id" -> peersFound.origin.value.unsized,
-        "token" -> peersFound.token.value,
-        "values" -> peersFound.peers
-          .map(serializePeerInfo)
-          .toList,
-        "nodes" -> peersFound.closestNodes
-          .map(serializeNodeInfo)
-          .mkString("")
-    )
-  override def decodeBody(args: Map[String, Any], trans: TransactionId): Either[String, PeersFoundAndNodes] =
-    for {
-      origin <- decodeOriginId(args).right
-      token <- decodeToken(args).right
-      peers <- decodePeerInfos(args).right
-      nodes <- decodeNodeInfos(args).right
-    } yield PeersFoundAndNodes(trans, origin, token, peers, nodes)
+      nodes = decodeNodeInfos(args)
+                .fold[Seq[NodeInfo]](_ => Seq.empty, identity)
+    } yield PeersFound(trans, origin, token, peers, nodes)
 }
 
 case object PeersNotFoundCodec extends ResponseCodec[PeersNotFound] {

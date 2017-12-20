@@ -72,9 +72,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       //noop: already updated table
     case NodesFound(trans, origin, nodes) =>
       Searches.continue(trans, info, nodes)
-    case PeersFound(trans, origin, token, peers) =>
-      reportPeersFound(trans, info, peers)
-    case PeersFoundAndNodes(trans, origin, token, peers, nodes) => //TODO do something with nodes
+    case PeersFound(trans, origin, token, peers, nodes) => //TODO do something with nodes
       reportPeersFound(trans, info, peers)
     case PeersNotFound(trans, origin, token, nodes) =>
       Searches.continue(trans, info, nodes)
@@ -108,7 +106,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
     val token = Token.forIp(remote.getHostName)
     val peers = peerMap.get(hash)
     if(peers.nonEmpty)
-      send(remote, PeersFound(trans, selfNode, token, peers.toSeq)) //TODO include nodes
+      send(remote, PeersFound(trans, selfNode, Some(token), peers.toSeq, Seq.empty)) //TODO include nodes
     else {
       val nodes = findCloserNodes(hash)
       if (nodes.nonEmpty)
