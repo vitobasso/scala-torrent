@@ -39,8 +39,7 @@ object ShortDescription {
       case FindNode(t, origin, target) => s"FindNode(${show(origin)}, ${show(target)})"
       case GetPeers(t, origin, hash) => s"GetPeers(${show(origin)}, ${show(hash)})"
       case NodesFound(t, origin, nodes) => s"NodesFound(${show(origin)}, ${show(nodes)})"
-      case PeersFound(t, origin, token, peers) => s"PeersFound(${show(origin)}, )"
-      case PeersFoundAndNodes(t, origin, token, peers, nodes) => s"PeersFound(${show(origin)}, )"
+      case PeersFound(t, origin, token, peers, nodes) => s"PeersFound(${show(origin)}, )"
       case PeersNotFound(t, origin, token, nodes) => s"PeersNotFound(${show(origin)}, )"
       case _ => v.toString
     }

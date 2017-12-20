@@ -79,7 +79,7 @@ class NodeActorAnswerSpec extends NodeActorSpec {
       fixture.received(GetPeers(_, _, targetHash))
 
       fixture.udp.expectMsgPF(){
-        case SendToNode(PeersFound(`transaction`, fixture.selfNode, _, peers), `remoteAddr`) =>
+        case SendToNode(PeersFound(`transaction`, fixture.selfNode, _, peers, _), `remoteAddr`) =>
           peers shouldBe Seq(knownPeer)
       }
     }
