@@ -12,6 +12,7 @@
           - store (in local routing table?) contact of x responding nodes closest to infohash
     send Bitfield, Have & Piece
     repeat request to tracker
+    monitoring (like grafana) for akka: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/#visualization-and-fun
 
 - test
     receive duplicate peers from Tracker (crashes Torrent actor, causing dead letters)
@@ -30,3 +31,4 @@
         (share the solution)
             https://stackoverflow.com/questions/10191480/the-torrent-info-hash-parameter?rq=1
             https://stackoverflow.com/questions/28140766/hash-calculation-in-torrent-clients?rq=1
+    separate logs: dht msgs, peerwire msgs, etc

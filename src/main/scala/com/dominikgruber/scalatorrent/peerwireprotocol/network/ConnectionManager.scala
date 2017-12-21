@@ -28,8 +28,10 @@ class ConnectionManager(portIn: Int)
   override def receive = {
     case CreateConnection(remoteAddress) => // from Coordinator.PeerConnRequestActor
       createConnRequestTempActor(remoteAddress, sender)
+      logPeerConnCounts()
 
     case Connected(remoteAddress, _) => // inbound, from Tcp connection
+      log.info(s"Inbound peer connection received from ${remoteAddress.getHostName}")
       val tcpConn = sender
       val peerConn = createPeerConnection(remoteAddress, tcpConn)
       tcpConn ! Register(peerConn)
@@ -57,6 +59,23 @@ class ConnectionManager(portIn: Int)
         originalSender ! PeerConnected(peerConn, remoteAddress)
         done()
     }
+  }
+
+  private def logPeerConnCounts(): Unit = {
+
+    def status(actorName: String): String =
+      actorName match {
+        case s: String if s.startsWith("peer-connection") => "active"
+        case s: String if s.startsWith("temp-connection-request") => "connecting"
+        case _ => "unknown"
+      }
+
+    val childCounts: String = context.children
+      .map(_.path.name).map(status)
+      .groupBy(identity).mapValues(_.size)
+      .map{ case (k, v) => s"$v $k" }.mkString(", ")
+
+    log.info(s"peer connections: $childCounts")
   }
 
   override def postStop(): Unit = {
