@@ -23,9 +23,9 @@ object ProgressReporting {
 
   class ReportRequestActor(torrent: ActorRef) extends Actor with ActorLogging {
     override def receive: Receive = {
-      case ReportPlease =>
+      case ReportPlease => //scheduled by Boot
         torrent ! ReportPlease
-      case r: ProgressReport =>
+      case r: ProgressReport => //from Torrent
         showProgress(r)
     }
   }
