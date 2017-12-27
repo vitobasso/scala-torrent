@@ -1,7 +1,5 @@
 package com.dominikgruber.scalatorrent.dht
 
-import java.net.InetSocketAddress
-
 import com.dominikgruber.scalatorrent.dht.NodeActor.SearchNode
 import com.dominikgruber.scalatorrent.dht.UdpSocket.{ReceivedFromNode, SendToNode}
 import com.dominikgruber.scalatorrent.dht.Util._
