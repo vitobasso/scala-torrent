@@ -1,15 +1,18 @@
 package com.dominikgruber.scalatorrent.tracker
 
 import java.net.{InetAddress, InetSocketAddress}
+import com.dominikgruber.scalatorrent.dht.message.DhtMessage
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
 import scala.language.implicitConversions
 
-object PeerAddress { //TODO deduplicate with dht.message.PeerInfo
+object PeerAddress {
   implicit def fromInetAddress(inetAddress: InetSocketAddress) =
     PeerAddress(inetAddress.getHostName, inetAddress.getPort)
   implicit def toInetAddress(address: PeerAddress): InetSocketAddress =
     new InetSocketAddress(address.ip, address.port)
+  implicit def fromDhtAddress(address: DhtMessage.Address) =
+    PeerAddress(address.ip.toString, address.port.toInt)
 }
 case class PeerAddress(ip: String, port: Int){
   override def toString: String = s"$ip:$port"

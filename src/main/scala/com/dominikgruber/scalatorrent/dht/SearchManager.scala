@@ -70,6 +70,16 @@ class SearchManager(selfNodeId: NodeId) {
     }
   }
 
+  def stop(target: Id20B, requester: ActorRef): Either[String, Unit] =
+    searches.find(s => s.target == target && s.requester.path == requester.path) match {
+      case Some(search) =>
+        searches -= search
+        pending = pending.filterNot{ case (trans, thisSearch) => thisSearch == search}
+        Right(())
+      case None =>
+        Left(s"Can't stop a search, it doesn't seem to be active: target=$target, requester.path=${requester.path}")
+    }
+
   def isInactive: Boolean = pending.isEmpty
 
   def cleanInactive(): Unit = {

@@ -37,6 +37,8 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       routingTable.add(info)
     case ReceivedFromNode(msg, remote) => //from UdpSocket
       handleNodeMessage(msg, remote)
+    case StopSearch(id: Id20B) =>
+      Searches.stop(id, sender)
     case CleanInactiveSearches =>
       Searches.cleanInactive()
       considerDiscoveringNewNodes() //maybe a previous node search timed out, let's try again
@@ -183,6 +185,11 @@ case object NodeActor {
     * Results in [[FoundPeers]]
     */
   case class SearchPeers(hash: InfoHash)
+
+  /**
+    * Request from a local actor
+    */
+  case class StopSearch(target: Id20B)
 
   /**
     * This actor's response to [[SearchPeers]]
