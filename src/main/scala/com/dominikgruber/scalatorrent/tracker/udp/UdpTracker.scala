@@ -63,7 +63,6 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress, port: Int) 
           requester ! TrackerResponseWithSuccess(a.interval, None, None, a.seeders, a.leechers, peers, None)
         case Failure(t) =>
           log.error(t, "Request to tracker failed")
-          requester ! TrackerConnectionFailed(t.getMessage)
       }
   }
 

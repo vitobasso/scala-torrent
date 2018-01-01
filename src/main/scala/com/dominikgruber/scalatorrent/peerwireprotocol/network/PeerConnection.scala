@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
-import akka.io.Tcp.{Abort, PeerClosed, Received, Write}
+import akka.io.Tcp._
 import akka.util.ByteString
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Handshake, Message, MessageOrHandshake}
@@ -12,6 +12,7 @@ import com.dominikgruber.scalatorrent.util.ByteUtil.Hex
 
 object PeerConnection {
   case class SetListener(listener: ActorRef)
+  case object Closed
 }
 
 class PeerConnection(tcp: ActorRef)
@@ -27,16 +28,15 @@ class PeerConnection(tcp: ActorRef)
   }
 
   def handshaking(listener: ActorRef): Receive =
-    behavior(HandshakeMode, listener)
-      .orElse {
-        case SetListener(newListener) => // from Torrent
-          context become sharing(newListener)
-      }
+    exchanging(HandshakeMode, listener) orElse
+      switchingListener orElse
+      unexpected
 
   def sharing(listener: ActorRef): Receive =
-    behavior(MessageMode, listener)
+    exchanging(MessageMode, listener) orElse
+      unexpected
 
-  def behavior[M <: MessageOrHandshake](mode: Mode[M], listener: ActorRef): Receive = {
+  def exchanging[M <: MessageOrHandshake](mode: Mode[M], listener: ActorRef): Receive = {
 
     case Received(data) => // from Tcp
       val result = buffer.receiveBytes(mode)(data)
@@ -52,9 +52,19 @@ class PeerConnection(tcp: ActorRef)
       log.debug(s"Sending $msg")
       tcp ! Write(msg)
 
-    case PeerClosed => // from Tcp
-      log.warning("Peer closed")
+    case c: ConnectionClosed => // from Tcp
+      log.warning(s"Connection closed: $c")
+      listener ! PeerConnection.Closed
+  }
 
+  def switchingListener: Receive = {
+    case SetListener(newListener) => // from Torrent
+      context become sharing(newListener)
+  }
+
+  def unexpected: Receive = {
+    case unexpected =>
+      log.warning(s"Unexpected event: $unexpected")
   }
 
   override def postStop(): Unit = {

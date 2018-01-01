@@ -5,13 +5,13 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
-import com.dominikgruber.scalatorrent.Coordinator.PeerConnected
-import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager.CreateConnection
 import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import com.dominikgruber.scalatorrent.util.{Asking, ExtraPattern}
 
 object ConnectionManager {
   case class CreateConnection(remoteAddress: InetSocketAddress)
+  case class Connected(peerConn: ActorRef, address: PeerAddress)
+  case class Failed(message: Option[Throwable])
 }
 
 class ConnectionManager(portIn: Int)
@@ -26,16 +26,16 @@ class ConnectionManager(portIn: Int)
   }
 
   override def receive = {
-    case CreateConnection(remoteAddress) => // from Coordinator.PeerConnRequestActor
+    case ConnectionManager.CreateConnection(remoteAddress) => // from Coordinator.PeerConnRequestActor
       createConnRequestTempActor(remoteAddress, sender)
       logPeerConnCounts()
 
-    case Connected(remoteAddress, _) => // inbound, from Tcp connection
+    case Tcp.Connected(remoteAddress, _) => // inbound, from Tcp connection
       log.info(s"Inbound peer connection received from ${remoteAddress.getHostName}")
       val tcpConn = sender
       val peerConn = createPeerConnection(remoteAddress, tcpConn)
       tcpConn ! Register(peerConn)
-      coordinator ! PeerConnected(peerConn, remoteAddress)
+      coordinator ! ConnectionManager.Connected(peerConn, remoteAddress)
   }
 
   private def createPeerConnection(address: PeerAddress, tcpConn: ActorRef): ActorRef = {
@@ -52,11 +52,19 @@ class ConnectionManager(portIn: Int)
     extends Actor with ActorLogging with ExtraPattern {
     tcpManager ! Connect(remoteAddress)
     override def receive: Receive = {
-      case Connected(_, _) => // outbound, from Tcp connection
+      case Tcp.Connected(addr, _) => // outbound, from Tcp connection
+        log.debug(s"TCP connected: $addr")
         val tcpConn = sender
         val peerConn = createPeerConnection(remoteAddress, tcpConn)
-        tcpConn ! Register(peerConn)
-        originalSender ! PeerConnected(peerConn, remoteAddress)
+        tcpConn ! Tcp.Register(peerConn)
+        originalSender ! ConnectionManager.Connected(peerConn, remoteAddress)
+        done()
+      case f @ Tcp.CommandFailed(cmd: Connect) if cmd.remoteAddress == remoteAddress =>
+        originalSender ! ConnectionManager.Failed(f.cause)
+        log.warning(s"Failed to connect to $remoteAddress. Cause: ${f.cause}")
+        done()
+      case unknown =>
+        log.warning(s"Unknown message: $unknown")
         done()
     }
   }

@@ -67,6 +67,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       answerFindNode(remote, trans, target)
     case GetPeers(trans, origin, hash) =>
       answerGetPeers(remote, trans, hash)
+    case _ => log.warning(s"Can't handle query: $msg")
   }
 
   private def handleResponse(msg: Response, info: NodeInfo): Unit = msg match {
@@ -78,6 +79,7 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
       reportPeersFound(trans, info, peers)
     case PeersNotFound(trans, origin, token, nodes) =>
       Searches.continue(trans, info, nodes)
+    case _ => log.warning(s"Can't handle response: $msg")
   }
 
   private def send(remote: InetSocketAddress, message: Message): Unit =

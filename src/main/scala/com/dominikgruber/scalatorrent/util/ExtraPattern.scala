@@ -18,13 +18,17 @@ trait ExtraPattern {
   val timeoutDuration: FiniteDuration = 5 seconds
   val timeoutTask: Cancellable =
     context.system.scheduler.scheduleOnce(timeoutDuration) {
-      if(context != null)
+      if(context != null) {
+        onTimeout()
         context.stop(self)
+      }
     }
 
   def done(): Unit = {
     timeoutTask.cancel()
     context.stop(self)
   }
+
+  def onTimeout(): Unit = ()
 
 }

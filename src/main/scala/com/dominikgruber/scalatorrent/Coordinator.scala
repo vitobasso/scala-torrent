@@ -21,7 +21,7 @@ object Coordinator {
   case class TorrentAddedSuccessfully(file: String, torrent: ActorRef)
   case class TorrentFileInvalid(file: String, message: String)
   case class ConnectToPeer(address: PeerAddress, meta: MetaInfo)
-  case class PeerConnected(peerConn: ActorRef, address: PeerAddress)
+  case class ConnectionFailed(peer: PeerAddress, cause: Option[String])
   case class IdentifyTorrent(infoHash: String)
 }
 
@@ -40,9 +40,10 @@ class Coordinator extends Actor with ActorLogging with Asking {
       addTorrentFile(file)
 
     case ConnectToPeer(peer, meta) => // from Torrent
+      log.debug(s"Requesting connection to $peer")
       createConnRequestTempActor(peer, meta, sender)
 
-    case PeerConnected(peerConn, address) => // inbound, from ConnectionManager
+    case ConnectionManager.Connected(peerConn, address) => // inbound, from ConnectionManager
       val handshakeActor = createInboundHandshakeActor(peerConn, address)
       peerConn ! SetListener(handshakeActor)
 
@@ -100,11 +101,22 @@ class Coordinator extends Actor with ActorLogging with Asking {
     extends Actor with ActorLogging with ExtraPattern {
     connManager ! CreateConnection(peer)
     override def receive: Receive = {
-      case PeerConnected(peerConn, address) => // outbound, from ConnectionManager
+      case ConnectionManager.Connected(peerConn, address) => // outbound, from ConnectionManager
+        log.debug(s"Peer connected: $address")
         val handshakeActor = createOutboundHandshakeActor(peerConn, address, meta, torrent)
         peerConn ! SetListener(handshakeActor)
         done()
+      case ConnectionManager.Failed(cause) =>
+        log.debug(s"Peer connection failed: $peer")
+        torrent ! Coordinator.ConnectionFailed(peer, cause.map(_.getMessage))
+        done()
     }
+
+    override def onTimeout(): Unit = {
+      log.warning(s"Peer connection request timed out: $peer")
+      torrent ! Coordinator.ConnectionFailed(peer, Some(s"Timeout ($timeoutDuration)"))
+    }
+
   }
 
 }

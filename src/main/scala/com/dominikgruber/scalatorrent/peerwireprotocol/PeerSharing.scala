@@ -5,7 +5,8 @@ import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing._
 import com.dominikgruber.scalatorrent.peerwireprotocol.message._
-import com.dominikgruber.scalatorrent.tracker.Peer
+import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection
+import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.util.Asking
 
 import scala.collection.BitSet
@@ -13,6 +14,7 @@ import scala.collection.BitSet
 object PeerSharing {
   case class SendToPeer(msg: MessageOrHandshake)
   case object NothingToRequest
+  case class Closed(peer: PeerAddress)
 }
 
 class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
@@ -58,7 +60,8 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
       peerConn ! SendToPeer(NotInterested())
     case msgToSend: SendToPeer => // from Torrent
       peerConn ! msgToSend
-    case _ => //TODO
+    case PeerConnection.Closed =>
+      torrent ! PeerSharing.Closed(peer.address)
   }
 
   def checkIfInterested(): Unit = {

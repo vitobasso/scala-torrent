@@ -3,7 +3,7 @@ package com.dominikgruber.scalatorrent.tracker.http
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets._
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import spray.client.pipelining._
 import spray.http.Uri.Query
@@ -27,7 +27,7 @@ object HttpTracker {
   }
 }
 
-class HttpTracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor {
+class HttpTracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor with ActorLogging {
   import HttpTracker._
   import TrackerEvent._
 
@@ -53,7 +53,7 @@ class HttpTracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor
         val resString = res.entity.asString(HttpCharsets.`ISO-8859-1`)
         requestor ! TrackerResponse(resString)
       case Failure(error) =>
-        requestor ! TrackerConnectionFailed(error.getMessage)
+        log.error(error, "Request to tracker failed")
     }
   }
 
