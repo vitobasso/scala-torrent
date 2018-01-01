@@ -1,16 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <appender name="APP" class="ch.qos.logback.core.FileAppender">
         <file>./log/app.log</file>
         <append>false</append>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level %X{akkaSource} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{5} %X{akkaSource} - %msg%n</pattern>
         </encoder>
     </appender>
 
+    <appender name="DHT" class="ch.qos.logback.core.FileAppender">
+        <file>./log/dht.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{5} %X{akkaSource} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="PWP" class="ch.qos.logback.core.FileAppender">
+        <file>./log/peer-wire-protocol.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{5} %X{akkaSource} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="AKKA" class="ch.qos.logback.core.FileAppender">
+        <file>./log/akka.log</file>
+        <append>false</append>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{5} %X{akkaSource} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.dominikgruber.scalatorrent.dht" level="debug" additivity="false">
+        <appender-ref ref="DHT" />
+    </logger>
+
+    <logger name="com.dominikgruber.scalatorrent.peerwireprotocol" level="debug" additivity="false">
+        <appender-ref ref="PWP" />
+    </logger>
+
+    <logger name="akka" level="debug" additivity="false">
+        <appender-ref ref="AKKA" />
+    </logger>
+
     <root level="debug">
-        <appender-ref ref="FILE" />
+        <appender-ref ref="APP" />
     </root>
 
 </configuration>

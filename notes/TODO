@@ -33,3 +33,5 @@
             https://stackoverflow.com/questions/10191480/the-torrent-info-hash-parameter?rq=1
             https://stackoverflow.com/questions/28140766/hash-calculation-in-torrent-clients?rq=1
     separate logs: dht msgs, peerwire msgs, etc
+    replace Props(new ..) with props factory
+        https://www.cakesolutions.net/teamblogs/understanding-akkas-recommended-practice-for-actor-creation-in-scala

@@ -19,6 +19,11 @@ import scala.util.matching.Regex
 object PeerFinder {
   case object FindPeers
   case class PeersFound(addresses: Set[PeerAddress])
+
+  sealed trait PeerStatus
+  case object New extends PeerStatus
+  case object Connected extends PeerStatus
+  case object Closed extends PeerStatus
 }
 
 /**
@@ -30,52 +35,75 @@ object PeerFinder {
   */
 case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent: ActorRef) extends Actor with ActorLogging {
 
+  val hash: InfoHash = torrentHash(meta)
+
   //lazy prevents init before overwrite from test
   lazy val trackers: Seq[ActorRef] = trackerAddrs.flatMap { createTrackerActor }
   lazy val node: ActorRef = createNodeActor
+  var isActive = false
 
   /**
     * Will try to find new peers while haven't found at least the target num.
     */
-  val targetNumPeers = 20 //TODO config
-  var peersKnown: Set[PeerAddress] = Set.empty
+  var peersKnown: Map[PeerAddress, PeerStatus] = Map.empty
 
   override def receive: Receive = {
     case FindPeers => // from Torrent
-      handleRequest()
-    case FoundPeers(_, peers) => // from NodeActor
+      start()
+    case NodeActor.FoundPeers(_, peers) => // from NodeActor
       handleResult(peers.map(PeerAddress.fromDhtAddress), "DHT")
-      if(peersKnown.size >= targetNumPeers) node ! StopSearch
+      if(knowEnoughPeers && isActive) {
+        stop()
+      }
     case s: TrackerResponseWithSuccess => // from Tracker
       handleResult(s.peers.map(_.address), "tracker")
     case f: TrackerResponseWithFailure =>
       log.warning(s"Request to Tracker failed: ${f.reason}")
-    case TrackerConnectionFailed(msg) =>
-      log.warning(s"Connection to Tracker failed: $msg")
+    case Torrent.PeerConnected(peer) =>
+      log.debug(s"Peer connected: $peer")
+      peersKnown = peersKnown.updated(peer, Connected)
+    case Torrent.PeerClosed(peer, cause) =>
+      log.debug(s"Peer closed: $peer. Cause: $cause")
+      peersKnown = peersKnown.updated(peer, Closed)
+      if(!knowEnoughPeers && !isActive) {
+        start()
+      }
   }
 
-  private def handleRequest() = {
+  private def start(): Unit = {
+    log.info(s"Starting peer search on DHT and trackers")
+    isActive = true
     trackers.foreach { _ ! SendEventStarted(0, 0) }
-    val hex = meta.hash.grouped(2).mkString(" ")
-    InfoHash.validateHex(hex) match { //TODO validate earlier on MetaInfo creation
-      case Right(hash) => node ! SearchPeers(hash)
-      case Left(err) => log.error(s"Invalid torrent hash: $err")
-    }
+    node ! SearchPeers(hash)
+  }
+
+  private def stop(): Unit = {
+    log.info(s"Stopping peer search on DHT")
+    isActive = false
+    node ! StopSearch(hash)
   }
 
   private def handleResult(unfiltered: Iterable[PeerAddress], source: String): Unit = {
     val uniquePeers: Set[PeerAddress] = unfiltered.toSet
-    val newPeers: Set[PeerAddress] = uniquePeers.diff(peersKnown)
+    val newPeers: Set[PeerAddress] = uniquePeers.diff(peersKnown.keySet)
     logResult(source, unfiltered, newPeers)
-    peersKnown = peersKnown ++ newPeers
-    torrent ! PeersFound(newPeers)
+    peersKnown = peersKnown ++ newPeers.map(_ -> New)
+    if(newPeers.nonEmpty) {
+      log.debug(s"Telling torrent actor about ${newPeers.size} new peers")
+      torrent ! PeersFound(newPeers)
+    }
   }
 
   private def logResult(source: String, unfiltered: Iterable[PeerAddress], newPeers: Set[PeerAddress]): Unit = {
     val discarded = unfiltered.size - newPeers.size
-    val newPeersMsg = s"Found ${newPeers.size} new peers from $source. ${newPeers.mkString(", ")}."
+    val newPeersMsg = s"Found ${newPeers.size} new peers from $source: ${newPeers.mkString(", ")}."
     val discardedMsg = s"Discarded $discarded previously known or duplicates."
     log.info(s"$newPeersMsg $discardedMsg")
+  }
+  val targetNumPeers = 50 //TODO config
+  def knowEnoughPeers: Boolean = {
+    val workingPeers = peersKnown.count { case (_, status) => status != PeerFinder.Closed }
+    workingPeers >= targetNumPeers
   }
 
   private def createTrackerActor(peerUrl: String): Option[ActorRef] = {
@@ -100,5 +128,16 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
 
   private def trackerAddrs: Seq[String] =
     meta.announceList.map { _.flatten }.getOrElse(Seq(meta.announce))
+
+  def torrentHash(meta: MetaInfo): InfoHash = {
+    val hex = meta.hash.grouped(2).mkString(" ")
+    InfoHash.validateHex(hex) match { //TODO validate earlier on MetaInfo creation
+      case Right(hash) => hash
+      case Left(err) =>
+        val msg = s"Invalid torrent hash: $err"
+        log.error(msg)
+        sys.error(msg)
+    }
+  }
 
 }

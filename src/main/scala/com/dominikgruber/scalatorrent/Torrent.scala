@@ -12,7 +12,7 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.Se
 import com.dominikgruber.scalatorrent.peerwireprotocol.{PeerSharing, TransferState}
 import com.dominikgruber.scalatorrent.storage.Storage
 import com.dominikgruber.scalatorrent.storage.Storage._
-import com.dominikgruber.scalatorrent.tracker.Peer
+import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.BitSet
@@ -24,6 +24,8 @@ object Torrent {
     */
   val BlockSize: Int = 16 * 1024
   case class PeerReady(conn: ActorRef, peer: Peer)
+  case class PeerConnected(peer: PeerAddress)
+  case class PeerClosed(peer: PeerAddress, cause: Option[String])
   case class AreWeInterested(partsAvailable: BitSet)
   case class NextRequest(partsAvailable: BitSet)
   case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
@@ -55,18 +57,27 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
   }
 
   def ready: Receive =
-    acceptingNewPeers orElse
+    managingPeers orElse
     sharing orElse
     reportingProgress
 
-  def acceptingNewPeers: Receive = {
+  def managingPeers: Receive = {
     case PeersFound(peers) =>
+      log.debug(s"Asking coordinator to connect to ${peers.size} new peers")
       peers.foreach {
         peer => coordinator ! ConnectToPeer(peer, meta)
       }
     case PeerReady(peerConn, peer) => // from HandshakeActor
       val peerSharing = createPeerSharingActor(peerConn, peer)
       peerConn ! SetListener(peerSharing)
+      log.info(s"Peer connected: ${peer.address}")
+      peerFinder ! PeerConnected(peer.address)
+    case PeerSharing.Closed(peerAddress) =>
+      log.info(s"Peer closed: $peerAddress")
+      peerFinder ! PeerClosed(peerAddress, None)
+    case Coordinator.ConnectionFailed(peerAddress, cause) =>
+      log.info(s"Peer connection failed: $peerAddress")
+      peerFinder ! PeerClosed(peerAddress, cause)
   }
 
   def sharing: Receive = {
