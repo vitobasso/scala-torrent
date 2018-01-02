@@ -17,6 +17,7 @@ libraryDependencies ++= {
     "org.scala-sbt" %% "sbinary" % "0.4.4",
     "org.typelevel" %% "cats-core" % "0.9.0",
     "com.chuusai" %% "shapeless" % "2.3.2",
+    "org.jline" % "jline" % "3.5.2",
     "com.typesafe.akka" %% "akka-testkit" % akkaV % "it,test",
     "org.scalatest" %% "scalatest" % "3.0.4" % "it,test",
     "org.scalamock" %% "scalamock-core" % scalaMockV % "it,test",

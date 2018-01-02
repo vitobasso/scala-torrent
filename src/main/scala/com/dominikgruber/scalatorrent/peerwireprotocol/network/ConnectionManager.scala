@@ -70,6 +70,7 @@ class ConnectionManager(portIn: Int)
   }
 
   private def logPeerConnCounts(): Unit = {
+    //FIXME accumulating even when peer disconnects. also duplicates the peer management in PeerFinder
 
     def status(actorName: String): String =
       actorName match {

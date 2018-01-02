@@ -4,13 +4,13 @@
 
 - feature
     accept:
+        magnet
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
     dht
         - persist routing table
         - persist peer info
         - refresh buckets (lastChagned 15min)
     send Bitfield, Have & Piece
-    monitoring (like grafana) for akka: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/#visualization-and-fun
 
 - test
     Coordinator actor
@@ -33,3 +33,7 @@
     replace Vector[Byte], others[Byte] by Array[Byte] ?
     extract BlockSize from torrent actor, to simplify tests
     parser messages with https://github.com/harrah/sbinary or scala parser
+
+- meta
+    doc: diagrams for the complicated interactions: Coordinator, ConnectionManager, PeerConnection, PeerFinder, ...
+    monitoring (like grafana) for akka: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/#visualization-and-fun
