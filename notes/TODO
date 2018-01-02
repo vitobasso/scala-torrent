@@ -1,37 +1,35 @@
 
+- fix
+    sending NotInterested after receiving Unchoke, even though peer had Bitfield(98%)
+
 - feature
     accept:
-        ~ magnet, mainline DHT
         .torrent file names: characters not allowed for akka actor names: [, $, space, etc
     dht
         - persist routing table
         - persist peer info
         - refresh buckets (lastChagned 15min)
-        - find peers
-          - stop if found enough peers; or
-          - store (in local routing table?) contact of x responding nodes closest to infohash
     send Bitfield, Have & Piece
-    repeat request to tracker
     monitoring (like grafana) for akka: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/#visualization-and-fun
 
 - test
-    receive duplicate peers from Tracker (crashes Torrent actor, causing dead letters)
-    coordinator actor
+    Coordinator actor
+    PeerFinder
     storage: validations
     TransferStatus: pending requests, ttl, forEachNewRequest
     StoredStatus
     dht.SearchManager
+    receive duplicate peers from Tracker
 
 - improve
-    parser messages with https://github.com/harrah/sbinary or scala parser
     scala 2.12
-    replace Vector[Byte], others[Byte] by Array[Byte] ?
-    extract BlockSize from torrent actor, to simplify tests
     centralized init & passing of config, random ids
+    replace Props(new ..) with props factory
     hash calculation
         (share the solution)
             https://stackoverflow.com/questions/10191480/the-torrent-info-hash-parameter?rq=1
             https://stackoverflow.com/questions/28140766/hash-calculation-in-torrent-clients?rq=1
-    separate logs: dht msgs, peerwire msgs, etc
-    replace Props(new ..) with props factory
         https://www.cakesolutions.net/teamblogs/understanding-akkas-recommended-practice-for-actor-creation-in-scala
+    replace Vector[Byte], others[Byte] by Array[Byte] ?
+    extract BlockSize from torrent actor, to simplify tests
+    parser messages with https://github.com/harrah/sbinary or scala parser

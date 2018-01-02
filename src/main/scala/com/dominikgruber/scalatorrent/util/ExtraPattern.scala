@@ -15,7 +15,7 @@ import scala.language.postfixOps
 trait ExtraPattern {
   selfType: Actor =>
 
-  val timeoutDuration: FiniteDuration = 5 seconds
+  val timeoutDuration: FiniteDuration = 30 seconds //TODO config
   val timeoutTask: Cancellable =
     context.system.scheduler.scheduleOnce(timeoutDuration) {
       if(context != null) {

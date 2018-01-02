@@ -33,8 +33,10 @@ protocols and DHT's. Was able to download a whole movie and watch it :)
   * [✔] Search peers & nodes
   * [TODO] Persist peer infos
   * [TODO] Announce peer
+* [✔] Manage known peers
 * CLI
   * [✔] Show progress
   * [TODO] Choose torrent file
   * [TODO] Choose magnet
+  * [TODO] Show peers
 
