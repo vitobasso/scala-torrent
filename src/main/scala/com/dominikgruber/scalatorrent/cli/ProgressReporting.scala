@@ -29,18 +29,41 @@ object ProgressReporting {
         showProgress(r)
     }
   }
-
-  import com.dominikgruber.scalatorrent.cli.AnsiEscape._
   def showProgress(progress: ProgressReport): Unit = {
-    val parts: String = progress.progressPerPiece
-      .zipWithIndex
-      .collect{ case (p, i) if p > 0 && p < 1 => s"$i: ${percent(p)}" }
-      .mkString(", ")
-    val total = percent(progress.overallProgress)
-    val partsSection = if(parts.isEmpty) "" else s", part $parts"
-    lineAbove(s"total: $total$partsSection")
+    val msg = progressMessage(progress)
+    AnsiEscape.printAbove(1, msg)
   }
 
-  def percent(v: Double): String = "%.0f%%" format (v * 100)
+  private def progressMessage(progress: ProgressReport): String = {
+    import org.jline.terminal.{Terminal, TerminalBuilder}
+    val terminal: Terminal = TerminalBuilder.terminal
+
+    val totalSpace = 5
+    val barSpace = terminal.getSize.getColumns - totalSpace
+
+    val parts = progress.progressPerPiece
+    val dots = parts.size min barSpace
+    val partsPerDot = (parts.size.toFloat / dots).ceil.toInt
+    val bar = parts.grouped(partsPerDot)
+      .map(dotChar)
+      .toList.mkString
+
+    val total = percent(progress.overallProgress)
+    s"$total $bar"
+  }
+
+  private val dots = List('.', ',', ':', ';', '!', '|', '\u2016', 'H', '#', '\u2588')
+  private val dotStep = 1.toFloat / dots.size
+
+  private def dotChar(parts: Seq[Double]): Char = {
+    val progress = parts.sum/parts.size
+    val index: Int =
+      dots.indices.reverse
+        .find(_ * dotStep < progress)
+        .getOrElse(0)
+    dots(index)
+  }
+
+  def percent(v: Double): String = "%3.0f%%" format (v * 100)
 
 }
