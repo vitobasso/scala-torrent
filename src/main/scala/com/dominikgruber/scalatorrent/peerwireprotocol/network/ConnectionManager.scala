@@ -28,7 +28,6 @@ class ConnectionManager(portIn: Int)
   override def receive = {
     case ConnectionManager.CreateConnection(remoteAddress) => // from Coordinator.PeerConnRequestActor
       createConnRequestTempActor(remoteAddress, sender)
-      logPeerConnCounts()
 
     case Tcp.Connected(remoteAddress, _) => // inbound, from Tcp connection
       log.info(s"Inbound peer connection received from ${remoteAddress.getHostName}")
@@ -67,24 +66,6 @@ class ConnectionManager(portIn: Int)
         log.warning(s"Unknown message: $unknown")
         done()
     }
-  }
-
-  private def logPeerConnCounts(): Unit = {
-    //FIXME accumulating even when peer disconnects. also duplicates the peer management in PeerFinder
-
-    def status(actorName: String): String =
-      actorName match {
-        case s: String if s.startsWith("peer-connection") => "active"
-        case s: String if s.startsWith("temp-connection-request") => "connecting"
-        case _ => "unknown"
-      }
-
-    val childCounts: String = context.children
-      .map(_.path.name).map(status)
-      .groupBy(identity).mapValues(_.size)
-      .map{ case (k, v) => s"$v $k" }.mkString(", ")
-
-    log.info(s"peer connections: $childCounts")
   }
 
   override def postStop(): Unit = {

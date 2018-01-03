@@ -1,7 +1,4 @@
 
-- fix
-    sending NotInterested after receiving Unchoke, even though peer had Bitfield(98%)
-
 - feature
     accept:
         magnet
@@ -11,6 +8,7 @@
         - persist peer info
         - refresh buckets (lastChagned 15min)
     send Bitfield, Have & Piece
+    regen corrupt pieces
 
 - test
     Coordinator actor
@@ -30,6 +28,7 @@
             https://stackoverflow.com/questions/10191480/the-torrent-info-hash-parameter?rq=1
             https://stackoverflow.com/questions/28140766/hash-calculation-in-torrent-clients?rq=1
         https://www.cakesolutions.net/teamblogs/understanding-akkas-recommended-practice-for-actor-creation-in-scala
+    throttle connecting to new peers (may find 100+ in one go)
     replace Vector[Byte], others[Byte] by Array[Byte] ?
     extract BlockSize from torrent actor, to simplify tests
     parser messages with https://github.com/harrah/sbinary or scala parser

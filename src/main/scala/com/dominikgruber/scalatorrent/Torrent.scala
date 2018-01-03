@@ -7,7 +7,7 @@ import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, PieceChecksum}
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToRequest, SendToPeer}
-import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Piece}
+import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Piece, Request}
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.peerwireprotocol.{PeerSharing, TransferState}
 import com.dominikgruber.scalatorrent.storage.Storage
@@ -27,8 +27,8 @@ object Torrent {
   case class PeerConnected(peer: PeerAddress)
   case class PeerClosed(peer: PeerAddress, cause: Option[String])
   case class AreWeInterested(partsAvailable: BitSet)
-  case class NextRequest(partsAvailable: BitSet)
-  case class ReceivedPiece(piece: Piece, partsAvailable: BitSet)
+  case class NextRequest(peer: PeerAddress, partsAvailable: BitSet)
+  case class ReceivedPiece(piece: Piece, peer: PeerAddress, partsAvailable: BitSet)
 }
 
 class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn: Int)
@@ -63,20 +63,20 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
 
   def managingPeers: Receive = {
     case PeersFound(peers) =>
-      log.debug(s"Asking coordinator to connect to ${peers.size} new peers")
+      log.debug(s"< Peers found: ${peers.size}")
       peers.foreach {
         peer => coordinator ! ConnectToPeer(peer, meta)
       }
     case PeerReady(peerConn, peer) => // from HandshakeActor
+      log.info(s"< Peer ready: ${peer.address}")
       val peerSharing = createPeerSharingActor(peerConn, peer)
       peerConn ! SetListener(peerSharing)
-      log.info(s"Peer connected: ${peer.address}")
       peerFinder ! PeerConnected(peer.address)
     case PeerSharing.Closed(peerAddress) =>
-      log.info(s"Peer closed: $peerAddress")
+      log.info(s"< Peer closed: $peerAddress")
       peerFinder ! PeerClosed(peerAddress, None)
     case Coordinator.ConnectionFailed(peerAddress, cause) =>
-      log.info(s"Peer connection failed: $peerAddress")
+      log.info(s"< Peer connection failed: $peerAddress")
       peerFinder ! PeerClosed(peerAddress, cause)
   }
 
@@ -85,15 +85,16 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
       if(transferState.isAnyPieceNewIn(piecesAvailable))
         sender ! SendToPeer(Interested())
 
-    case NextRequest(piecesAvailable) => // from PeerSharing
-      requestNewBlocks(piecesAvailable, sender)
+    case NextRequest(peer, piecesAvailable) => // from PeerSharing
+      log.debug(s"< NextRequest")
+      requestNewBlocks(peer, piecesAvailable, sender)
 
-    case ReceivedPiece(piece, piecesAvailable) => // from PeerSharing
+    case ReceivedPiece(piece, peer, piecesAvailable) => // from PeerSharing
       //TODO validate numbers received
       transferState
         .addBlock(piece.index, piece.begin/BlockSize, piece.block.toArray)
         .foreach { checkAndStore(piece.index, _) } //if piece is now complete
-      requestNewBlocks(piecesAvailable, sender)
+      requestNewBlocks(peer, piecesAvailable, sender)
   }
 
   def reportingProgress: Receive = {
@@ -109,13 +110,18 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
       transferState.resetPiece(index)
     }
 
-  def requestNewBlocks(piecesAvailable: BitSet, peerSharing: ActorRef): Unit = {
-    transferState.forEachNewRequest(piecesAvailable) {
-      request => peerSharing ! SendToPeer(request)
-    } elseIfEmpty {
-      peerSharing ! NothingToRequest
+  def requestNewBlocks(peer: PeerAddress, piecesAvailable: BitSet, peerSharing: ActorRef): Unit =
+    transferState.produceNewRequests(peer, piecesAvailable) match {
+      case None =>
+        log.debug(s"> NothingToRequest")
+        peerSharing ! NothingToRequest
+      case Some(Nil) =>
+        log.debug(s"Out of budget")
+      case Some(requests) if requests.nonEmpty =>
+        requests.foreach { request: Request =>
+          peerSharing ! SendToPeer(request)
+        }
     }
-  }
 
   private def createPeerFinderActor() = {
     val props = Props(classOf[PeerFinder], meta, peerPortIn, nodePortIn, self)

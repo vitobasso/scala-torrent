@@ -17,6 +17,7 @@ class TorrentRestoringProgressSpec extends TorrentSpec {
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
   val allAvailable = BitSet(0, 1, 2)
+  val peer = Mocks.peer.address
 
   "a Torrent actor, when restoring progress from a file" must {
 
@@ -34,13 +35,13 @@ class TorrentRestoringProgressSpec extends TorrentSpec {
 
       val bytes0 = Mocks.block(0.toByte)
       val block0 = Piece(index, 0 * BlockSize, bytes0)
-      torrent ! ReceivedPiece(block0, allAvailable)
+      torrent ! ReceivedPiece(block0, peer, allAvailable)
       storage.expectNoMsg()
       expectMsgType[SendToPeer]
 
       val bytes1 = Mocks.block(1.toByte)
       val block1 = Piece(index, 1 * BlockSize, bytes1)
-      torrent ! ReceivedPiece(block1, allAvailable)
+      torrent ! ReceivedPiece(block1, peer, allAvailable)
       storage.expectMsgPF() {
         case Store(`index`, data) =>
           data should contain theSameElementsInOrderAs (bytes0 ++ bytes1)

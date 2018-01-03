@@ -44,7 +44,7 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
 
   override def receive: Receive = {
     case p: Piece => // from PeerConnection
-      torrent ! ReceivedPiece(p, toBitSet(bitfield))
+      torrent ! ReceivedPiece(p, peer.address, toBitSet(bitfield))
     case b: Bitfield => // from PeerConnection
       //TODO validate length
       bitfield = b.availablePieces
@@ -54,13 +54,16 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
       if(!amInterested) checkIfInterested()
     case _: Unchoke => // from PeerConnection
       peerChoking = false
-      torrent ! NextRequest(toBitSet(bitfield))
+      log.debug(s"> NextRequest")
+      torrent ! NextRequest(peer.address, toBitSet(bitfield))
     case NothingToRequest => // from Torrent
+      log.debug(s"< NothingToRequest")
       amInterested = false
       peerConn ! SendToPeer(NotInterested())
     case msgToSend: SendToPeer => // from Torrent
       peerConn ! msgToSend
     case PeerConnection.Closed =>
+      log.debug(s"< Peer closed")
       torrent ! PeerSharing.Closed(peer.address)
   }
 

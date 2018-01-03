@@ -30,16 +30,21 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
 
   override def receive: Receive = {
     case SearchNode(id) =>
+      log.info(s"< SearchNode $id")
       Searches.start(id, sender)
     case SearchPeers(hash) =>
+      log.info(s"< SearchPeers $hash")
       Searches.start(hash, sender)
     case AddNode(info) =>
+      log.info(s"< AddNode $info")
       routingTable.add(info)
     case ReceivedFromNode(msg, remote) => //from UdpSocket
       handleNodeMessage(msg, remote)
     case StopSearch(id: Id20B) =>
+      log.info(s"< StopSearch $id")
       Searches.stop(id, sender)
     case CleanInactiveSearches =>
+      log.info(s"< CleanInactiveSearches")
       Searches.cleanInactive()
       considerDiscoveringNewNodes() //maybe a previous node search timed out, let's try again
   }

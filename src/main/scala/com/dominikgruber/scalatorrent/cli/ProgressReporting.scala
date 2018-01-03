@@ -52,7 +52,7 @@ object ProgressReporting {
     s"$total $bar"
   }
 
-  private val dots = List('.', ',', ':', ';', '!', '|', '\u2016', 'H', '#', '\u2588')
+  private val dots = List('.', ',', ':', ';', '¡', '|', '\u2016', '\u2588')
   private val dotStep = 1.toFloat / dots.size
 
   private def dotChar(parts: Seq[Double]): Char = {

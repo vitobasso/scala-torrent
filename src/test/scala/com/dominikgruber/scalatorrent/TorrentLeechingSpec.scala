@@ -16,6 +16,7 @@ class TorrentLeechingSpec extends TorrentSpec {
     pieceLength = 2 * BlockSize)
   val allAvailable = BitSet(0, 1, 2, 3)
   val totalBlocks: Long = meta.fileInfo.totalBytes/BlockSize
+  val peer = Mocks.peer.address
 
   "a Torrent actor, when downloading" must {
 
@@ -28,7 +29,7 @@ class TorrentLeechingSpec extends TorrentSpec {
     }
 
     "send 5 Requests in response to MoreRequests" in {
-      torrent ! NextRequest(allAvailable)
+      torrent ! NextRequest(peer, allAvailable)
       for(_ <- 1 to 5) //5 = TransferState.SimultaneousRequests
         ObservedRequests.expectRequest()
       expectNoMsg()
@@ -62,7 +63,7 @@ class TorrentLeechingSpec extends TorrentSpec {
     "send a new Request in response to ReceivedPiece" in {
       val firstRequest = ObservedRequests.received.head
       val piece = Piece(firstRequest.index, firstRequest.begin, Vector.empty)
-      torrent ! ReceivedPiece(piece, allAvailable)
+      torrent ! ReceivedPiece(piece, peer, allAvailable)
       ObservedRequests.expectRequest()
       expectNoMsg()
     }
@@ -70,7 +71,7 @@ class TorrentLeechingSpec extends TorrentSpec {
     "not send Interested when a peer hasn't got any new pieces" in {
       val secondRequest = ObservedRequests.received(1)
       val piece = Piece(secondRequest.index, secondRequest.begin, Vector.empty)
-      torrent ! ReceivedPiece(piece, allAvailable)
+      torrent ! ReceivedPiece(piece, peer, allAvailable)
       ObservedRequests.expectRequest()
       expectNoMsg()
 

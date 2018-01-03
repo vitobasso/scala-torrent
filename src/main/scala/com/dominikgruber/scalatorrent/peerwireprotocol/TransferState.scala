@@ -6,28 +6,11 @@ import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState._
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.Request
+import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.{BitSet, mutable}
-import scala.concurrent.duration._
 import scala.util.Random
-
-case object TransferState {
-  val SimultaneousRequests: Int = 5
-  val RequestTTL: Duration = 10.seconds
-
-  sealed trait PieceStatus
-  case object Empty extends PieceStatus
-  case class InProgress(blocks: Seq[BlockStatus]) extends PieceStatus
-  case object Stored extends PieceStatus
-
-  sealed trait BlockStatus
-  case object Missing extends BlockStatus
-  case class Pending(since: Long) extends BlockStatus
-  case class Received(bytes: Bytes) extends BlockStatus
-
-  case class ProgressReport(overallProgress: Double, progressPerPiece: Seq[Double])
-}
 
 /**
   * Keeps track of which pieces are done, missing or currently being downloaded.
@@ -46,14 +29,14 @@ case class TransferState(metaInfo: MetaInfo) {
     */
   private val pieces: mutable.Seq[PieceStatus] = mutable.Seq.fill(totalPieces)(Empty)
 
-  private val pendingRequests = mutable.Map.empty[Request, Long] //TODO budget per peer
+  private val pending = new PendingRequests()
 
   /**
     * Add a received block to the transfer state.
     * @return bytes for a whole piece, if it's just been completed with the new block
     */
   def addBlock(piece: Int, block: Int, data: Bytes): Option[Bytes] = {
-    removePending(piece, block)
+    pending.drop(piece, block)
     pieces(piece).received(block, data) match {
       case CompletePiece(bytes) =>
         pieces(piece) = Stored
@@ -68,7 +51,7 @@ case class TransferState(metaInfo: MetaInfo) {
     * Because we know this piece has been stored before
     */
   def markPieceCompleted(piece: Int): Unit = {
-    removePending(piece)
+    pending.drop(piece)
     pieces(piece) = Stored
   }
 
@@ -88,49 +71,31 @@ case class TransferState(metaInfo: MetaInfo) {
 
   /**
     * Create new requests for missing blocks and do something with them
+    * @param piecesAvailable in the remote peer
+    * @return
+    *   - Some([[Request]]s) to get pieces we're missing from a remote peer; or
+    *   - Some(empty) if out of request budget, even though we want of the piecesAvailable
+    *   - None if none of the piecesAvailable interest us
     */
-  case class forEachNewRequest(piecesAvailable: BitSet)(whenHasElements: Request => Unit) {
-    private val requests = nextRequests(requestBudget, piecesAvailable)
-    def elseIfEmpty(whenEmpty: => Unit): Unit =
-      if(requests.isEmpty)
-        whenEmpty
-      else requests.foreach { request: Request =>
-        whenHasElements(request)
-      }
-  }
-
-  private def removePending(piece: Int): Unit =
-    pendingRequests.retain { case (req, _) => req.index != piece }
-
-  private def removePending(piece: Int, block: Int): Unit =
-    pendingRequests.retain { case (req, _) => req.index != piece || req.begin/BlockSize != block}
+  def produceNewRequests(peer: PeerAddress, piecesAvailable: BitSet): Option[Seq[Request]] =
+    nextRequests(peer, requestBudget(peer), piecesAvailable)
 
   /**
     * How many requests we can still add to the pending ones
     */
-  private def requestBudget: Int = {  //TODO budget per peer
-    def notTooOld(epoch: Long): Boolean = {
-      val lifeTime: Duration = (currentTimeMillis - epoch).millis
-      lifeTime < RequestTTL
-    }
-    pendingRequests.retain { case (_, t) => notTooOld(t) }
-    SimultaneousRequests - pendingRequests.size
-  }
+  private def requestBudget(peer: PeerAddress): Int =
+    SimultaneousRequests - pending.size(peer)
 
-  /**
-    * @param available in the remote peer
-    * @return [[Request]]s to get pieces we're missing from a remote peer
-    */
-  private def nextRequests(num: Int, available: BitSet): Seq[Request] =
-    if(num <= 0) Nil
-    else nextRequest(available) match {
-      case Some(request) => request +: nextRequests(num - 1, available)
-      case None => Nil
+  private def nextRequests(peer: PeerAddress, budget: Int, available: BitSet): Option[Seq[Request]] =
+    if(budget <= 0) Some(Seq.empty)
+    else nextRequest(peer, available) match {
+      case Some(request) => Some(request +: nextRequests(peer, budget - 1, available).getOrElse(Nil))
+      case None => None
     }
 
-  private def nextRequest(available: BitSet): Option[Request] =
+  private def nextRequest(peer: PeerAddress, available: BitSet): Option[Request] =
     pickNewBlock(available).map { request =>
-      pendingRequests += (request -> currentTimeMillis)
+      pending.add(peer, request)
       pieces(request.index) = pieces(request.index).requested(request.begin/BlockSize)
       request
     }
@@ -255,4 +220,20 @@ case class TransferState(metaInfo: MetaInfo) {
     }
   }
 
+}
+
+case object TransferState {
+  val SimultaneousRequests: Int = 5 //pipelining: saturate tcp connection for performance
+
+  sealed trait PieceStatus
+  case object Empty extends PieceStatus
+  case class InProgress(blocks: Seq[BlockStatus]) extends PieceStatus
+  case object Stored extends PieceStatus
+
+  sealed trait BlockStatus
+  case object Missing extends BlockStatus
+  case class Pending(since: Long) extends BlockStatus
+  case class Received(bytes: Bytes) extends BlockStatus
+
+  case class ProgressReport(overallProgress: Double, progressPerPiece: Seq[Double])
 }

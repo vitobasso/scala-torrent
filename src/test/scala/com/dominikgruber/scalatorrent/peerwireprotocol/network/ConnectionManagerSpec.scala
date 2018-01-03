@@ -6,7 +6,6 @@ import akka.actor.{ActorRef, PoisonPill, Props}
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.testkit.TestProbe
-import com.dominikgruber.scalatorrent.Coordinator.PeerConnected
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Message}
@@ -53,7 +52,7 @@ class ConnectionManagerSpec extends ActorSpec {
       tcpConn.send(connManager, Connected(theirAddress, ourAddress))
 
       val Register(handler, _, _) = tcpConn.expectMsgType[Register]
-      val PeerConnected(peerConn, addr) = coordinator.expectMsgType[PeerConnected]
+      val ConnectionManager.Connected(peerConn, addr) = coordinator.expectMsgType[ConnectionManager.Connected]
       peerConn shouldBe handler
       addr.ip shouldBe theirHost
       addr.port shouldBe theirPort
@@ -78,7 +77,7 @@ class ConnectionManagerSpec extends ActorSpec {
       tcpConn.send(connRequest, Connected(theirAddress, ourAddress))
 
       val Register(handler, _, _) = tcpConn.expectMsgType[Register]
-      val PeerConnected(peerConn, addr2) = expectMsgType[PeerConnected]
+      val ConnectionManager.Connected(peerConn, addr2) = expectMsgType[ConnectionManager.Connected]
       peerConn shouldBe handler
       addr2.ip shouldBe theirHost
       addr2.port shouldBe theirPort

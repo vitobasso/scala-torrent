@@ -6,11 +6,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.PeerFinder._
 import com.dominikgruber.scalatorrent.SelfInfo.selfPeerId
 import com.dominikgruber.scalatorrent.dht.NodeActor
-import com.dominikgruber.scalatorrent.dht.NodeActor.{FoundPeers, SearchPeers, StopSearch}
+import com.dominikgruber.scalatorrent.dht.NodeActor.{SearchPeers, StopSearch}
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage.InfoHash
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.tracker.PeerAddress
-import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.{SendEventStarted, TrackerConnectionFailed}
+import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.SendEventStarted
 import com.dominikgruber.scalatorrent.tracker.http.{HttpTracker, TrackerResponseWithFailure, TrackerResponseWithSuccess}
 import com.dominikgruber.scalatorrent.tracker.udp.UdpTracker
 
@@ -88,10 +88,7 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val newPeers: Set[PeerAddress] = uniquePeers.diff(peersKnown.keySet)
     logResult(source, unfiltered, newPeers)
     peersKnown = peersKnown ++ newPeers.map(_ -> New)
-    if(newPeers.nonEmpty) {
-      log.debug(s"Telling torrent actor about ${newPeers.size} new peers")
-      torrent ! PeersFound(newPeers)
-    }
+    if(newPeers.nonEmpty) torrent ! PeersFound(newPeers)
   }
 
   private def logResult(source: String, unfiltered: Iterable[PeerAddress], newPeers: Set[PeerAddress]): Unit = {
