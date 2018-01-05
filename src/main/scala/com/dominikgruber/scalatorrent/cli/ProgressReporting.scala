@@ -31,16 +31,20 @@ object ProgressReporting {
         showProgress(r)
     }
   }
-  def showProgress(progress: ProgressReport): Unit = {
-    import org.jline.terminal.{Terminal, TerminalBuilder}
-    val terminal: Terminal = TerminalBuilder.terminal
-    val cols = terminal.getSize.getColumns
 
+  def showProgress(progress: ProgressReport): Unit = {
     val total = percent(progress.overallProgress)
     val bar = progressBar(progress)
-    val barLines = bar.length/cols
-    AnsiEscape.printAbove(barLines + 2, total)
-    AnsiEscape.printAbove(barLines + 1, bar)
+
+    val rendering = new Rendering
+
+    val layout =
+      rendering.newLayout
+        .addBottom(total)
+        .addBottom(bar)
+        .addBottom("")
+
+    rendering.render(layout)
   }
 
   private val dots = List('.', ':', '|', '\u2016', '\u2588')
