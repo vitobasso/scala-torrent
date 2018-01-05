@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.PeerFinder.{FindPeers, PeersFound}
 import com.dominikgruber.scalatorrent.Torrent._
-import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
+import com.dominikgruber.scalatorrent.cli.FrontendActor.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, PieceChecksum}
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToRequest, SendToPeer}
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Piece, Request}
@@ -98,8 +98,8 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
   }
 
   def reportingProgress: Receive = {
-    case ReportPlease => // from ProgressReporting
-      sender ! transferState.report
+    case ReportPlease(listener) => // from Coordinator
+      listener ! transferState.report
   }
 
   def checkAndStore(index: Int, bytes: Bytes): Unit =

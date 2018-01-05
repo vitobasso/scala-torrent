@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import com.dominikgruber.scalatorrent.Coordinator._
-import com.dominikgruber.scalatorrent.cli.ProgressReporting
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -62,7 +61,6 @@ object Boot extends App {
       (coordinator ? AddTorrentFile(file)) onSuccess {
         case TorrentAddedSuccessfully(file1, torrent) =>
           print(s"Added $file1.\n> ")
-          ProgressReporting.scheduleReport(file1, torrent)
         case TorrentFileInvalid(file1, message) =>
           print(s"Failed to add $file1: $message\n> ")
         case _ =>

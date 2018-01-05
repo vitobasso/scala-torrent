@@ -4,6 +4,7 @@ import java.io.File
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator._
+import com.dominikgruber.scalatorrent.cli.FrontendActor
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.HandshakeActor.TorrentInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager.CreateConnection
@@ -30,8 +31,9 @@ class Coordinator extends Actor with ActorLogging with Asking {
   val conf: Config = ConfigFactory.load.getConfig("scala-torrent")
   val peerPort: Int = conf.getInt("bittorrent-port ")
   val nodePort: Int = conf.getInt("dht-port ")
-  val connManager: ActorRef = createConnManagerActor(peerPort)
 
+  val frontend: ActorRef = createFrontendActor
+  val connManager: ActorRef = createConnManagerActor(peerPort)
   val torrents = mutable.Map.empty[String,(ActorRef, MetaInfo)]
 
   override def receive: Receive = {
@@ -55,11 +57,12 @@ class Coordinator extends Actor with ActorLogging with Asking {
       }
   }
 
-  private def addTorrentFile(file: String): Unit = {
+  def addTorrentFile(file: String): Unit = {
     try {
       val meta = MetaInfo(new File(file))
       val torrentActor: ActorRef = createTorrentActor(meta)
       torrents(meta.hash) = (torrentActor, meta)
+      scheduleReport(torrentActor)
       sender ! TorrentAddedSuccessfully(file, torrentActor)
     } catch {
       case e: Exception =>
@@ -68,27 +71,38 @@ class Coordinator extends Actor with ActorLogging with Asking {
     }
   }
 
-  private def createTorrentActor(meta: MetaInfo) = {
+  def scheduleReport(torrent: ActorRef): Unit = {
+    import com.dominikgruber.scalatorrent.cli.FrontendActor.{ReportPlease, updateRate}
+    import scala.concurrent.duration._
+    context.system.scheduler.schedule(0.millis, updateRate, torrent, ReportPlease(frontend))
+  }
+
+  def createFrontendActor: ActorRef = {
+    val props = Props(classOf[FrontendActor])
+    context.actorOf(props, "frontend")
+  }
+
+  def createTorrentActor(meta: MetaInfo) = {
     val torrentProps = Props(classOf[Torrent], meta, self, peerPort, nodePort)
     context.actorOf(torrentProps, "torrent-" + meta.hash)
   }
 
-  private def createOutboundHandshakeActor(peerConn: ActorRef, address: PeerAddress, meta: MetaInfo, torrent: ActorRef): ActorRef = {
+  def createOutboundHandshakeActor(peerConn: ActorRef, address: PeerAddress, meta: MetaInfo, torrent: ActorRef): ActorRef = {
     val props = Props(classOf[OutboundHandshake], peerConn, address, meta, torrent)
     context.actorOf(props, s"handshake-out-$address-${meta.hash}")
   }
 
-  private def createInboundHandshakeActor(peerConn: ActorRef, address: PeerAddress): ActorRef = {
+  def createInboundHandshakeActor(peerConn: ActorRef, address: PeerAddress): ActorRef = {
     val props = Props(classOf[InboundHandshake], peerConn, address)
     context.actorOf(props, s"handshake-in-$address")
   }
 
-  private def createConnManagerActor(peerPort: Int): ActorRef = {
+  def createConnManagerActor(peerPort: Int): ActorRef = {
     val props = Props(classOf[ConnectionManager], peerPort)
     context.actorOf(props, "connection-manager")
   }
 
-  private def createConnRequestTempActor(peer: PeerAddress, meta: MetaInfo, torrent: ActorRef): ActorRef = {
+  def createConnRequestTempActor(peer: PeerAddress, meta: MetaInfo, torrent: ActorRef): ActorRef = {
     val props = Props(new PeerConnRequestActor(peer, meta, torrent))
     val name = s"temp-peer-connection-request-$peer-${meta.hash}"
     context.child(name) match { //TODO also check existing (established) PeerConnection?
