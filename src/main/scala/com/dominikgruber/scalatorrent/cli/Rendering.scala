@@ -13,23 +13,39 @@ class Rendering {
   private val cols: Int = terminal.getSize.getColumns
   private val rows: Int = terminal.getSize.getRows
 
-  def newLayout: Layout = Layout(cols)
+  /**
+    * Keep track of how many rows we currently occupy in the terminal, to decide when to add more.
+    */
+  private var rowsTaken: Int = 0
+
+  def newLayout(nSections: Int): Layout = Layout(cols, nSections)
 
   def render(layout: Layout): Unit = {
-    clearLines(top = rows, height = rows - 1) //let the prompt be in the bottom row
+    val totalHeight = layout.height
+    stretch(totalHeight)
+    clearLines(
+      top = totalHeight + 1, //let the prompt be in the bottom row
+      height = totalHeight)
     layout.sections.foreach(renderSection)
   }
 
   private def renderSection(section: Section): Unit = {
-    val begin = '\r' + up() * section.top
+    val begin = "\r" + up() * section.top
     print(s"$Save$begin${section.string}$Restore")
   }
 
   private def clearLines(top: Int, height: Int): Unit = {
     val begin = up() * top
-    val clearOne = '\r' + ClearLine + down()
+    val clearOne = "\r" + ClearLine + down()
     val clearAll = begin + clearOne * height
     print(s"$Save$clearAll$Restore")
   }
+
+  private def stretch(height: Int): Unit = {
+    val newRows = height - rowsTaken
+    print("\n" * newRows)
+    rowsTaken += newRows
+  }
+
 
 }

@@ -9,6 +9,7 @@
         - refresh buckets (lastChagned 15min)
     send Bitfield, Have & Piece
     regen corrupt pieces
+    test connection, report failure
 
 - test
     Coordinator actor

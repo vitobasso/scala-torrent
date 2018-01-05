@@ -11,7 +11,7 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.peerwireprotocol.network._
 import com.dominikgruber.scalatorrent.peerwireprotocol.{InboundHandshake, OutboundHandshake}
-import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
+import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import com.dominikgruber.scalatorrent.util.{Asking, ExtraPattern}
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -72,8 +72,9 @@ class Coordinator extends Actor with ActorLogging with Asking {
   }
 
   def scheduleReport(torrent: ActorRef): Unit = {
-    import com.dominikgruber.scalatorrent.cli.FrontendActor.{ReportPlease, updateRate}
     import scala.concurrent.duration._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    import com.dominikgruber.scalatorrent.cli.FrontendActor.{ReportPlease, updateRate}
     context.system.scheduler.schedule(0.millis, updateRate, torrent, ReportPlease(frontend))
   }
 
