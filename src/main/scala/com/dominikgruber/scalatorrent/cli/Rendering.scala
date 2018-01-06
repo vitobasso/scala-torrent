@@ -2,30 +2,37 @@ package com.dominikgruber.scalatorrent.cli
 
 import com.dominikgruber.scalatorrent.cli.AnsiEscape._
 import com.dominikgruber.scalatorrent.cli.Layout.Section
+import org.jline.reader.{LineReader, LineReaderBuilder}
 import org.jline.terminal.{Terminal, TerminalBuilder}
 
 /**
   * Row coordinates count from the bottom up.
   */
-class Rendering {
+object Rendering {
 
-  private val terminal: Terminal = TerminalBuilder.terminal
+  private val terminal: Terminal = {
+    val terminal = TerminalBuilder.terminal
+    terminal.enterRawMode()
+    terminal
+  }
+
+  val reader: LineReader = {
+    LineReaderBuilder.builder().terminal(terminal).build()
+  }
+
   private val cols: Int = terminal.getSize.getColumns
-  private val rows: Int = terminal.getSize.getRows
 
   /**
-    * Keep track of how many rows we currently occupy in the terminal, to decide when to add more.
+    * Keep track of how many lines we currently occupy in the terminal, to decide when to add more.
     */
-  private var rowsTaken: Int = 0
+  private var linesTaken: Int = 0
 
   def newLayout(nSections: Int): Layout = Layout(cols, nSections)
 
   def render(layout: Layout): Unit = {
-    val totalHeight = layout.height
-    stretch(totalHeight)
-    clearLines(
-      top = totalHeight + 1, //let the prompt be in the bottom row
-      height = totalHeight)
+    val height = layout.height
+    stretch(height)
+    clearLines(top = height, height = height)
     layout.sections.foreach(renderSection)
   }
 
@@ -42,9 +49,9 @@ class Rendering {
   }
 
   private def stretch(height: Int): Unit = {
-    val newRows = height - rowsTaken
+    val newRows = height - linesTaken
     print("\n" * newRows)
-    rowsTaken += newRows
+    linesTaken += newRows
   }
 
 

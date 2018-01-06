@@ -8,7 +8,6 @@ import com.dominikgruber.scalatorrent.Coordinator.{AddTorrentFile, TorrentAddedS
 import com.dominikgruber.scalatorrent.cli.FrontendActor.CommandResponse
 
 import scala.concurrent.duration._
-import scala.io.StdIn
 
 case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
 
@@ -21,18 +20,14 @@ case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
   // TMP
 
   // Listen for commands
-  print("> ")
-  Iterator.continually(StdIn.readLine()).foreach { cmd =>
-    cmd match {
-      case _ if cmd.startsWith("add ") => addTorrentFile(cmd.substring(4).trim)
-      case "help" => printHelp()
-      case "quit" => quit()
-      case "exit" => quit()
-      case _ if !cmd.trim.isEmpty =>
-        frontend ! CommandResponse("Unknown command. Type 'help' for a list of all commands.")
-      case _ =>
-    }
-    print("> ")
+  Iterator.continually(Rendering.reader.readLine("> ")).foreach {
+    case cmd if cmd.startsWith("add ") => addTorrentFile(cmd.substring(4).trim)
+    case "help" => printHelp()
+    case "quit" => quit()
+    case "exit" => quit()
+    case cmd if !cmd.trim.isEmpty =>
+      frontend ! CommandResponse("Unknown command. Type 'help' for a list of all commands.")
+    case _ =>
   }
 
   def addTorrentFile(file: String): Unit = {

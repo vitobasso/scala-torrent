@@ -8,8 +8,7 @@ import FrontendActor._
 
 case class FrontendActor() extends Actor with ActorLogging {
 
-  val rendering = new Rendering
-  var layout: Layout = rendering.newLayout(5)
+  var layout: Layout = Rendering.newLayout(5)
     .updated(4, title)
 
   override def preStart(): Unit = {
@@ -18,7 +17,7 @@ case class FrontendActor() extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case Render => // scheduled
-      rendering.render(layout)
+      Rendering.render(layout)
     case ProgressReport(overall, perPiece) => //from Torrent
       updateProgress(overall, perPiece)
     case CommandResponse(response) =>
@@ -66,7 +65,9 @@ case object FrontendActor {
 
 
   val title: String =
-    """                    __            __                             __
+    """
+      |
+      |                    __            __                             __
       |   ______________ _/ /___ _      / /_____  _____________  ____  / /_
       |  / ___/ ___/ __ `/ / __ `/_____/ __/ __ \/ ___/ ___/ _ \/ __ \/ __/
       | (__  ) /__/ /_/ / / /_/ /_____/ /_/ /_/ / /  / /  /  __/ / / / /_
