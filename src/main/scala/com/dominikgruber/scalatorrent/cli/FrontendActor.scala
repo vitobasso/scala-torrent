@@ -27,7 +27,7 @@ case class FrontendActor() extends Actor with ActorLogging {
 
   def updateProgress(overall: Double, perPiece: Seq[Double]): Unit = {
     val total = percent(overall)
-    val bar = progressBar(perPiece)
+    val bar = progressBar(perPiece) + "\n "
     layout = layout.updated(3, total).updated(2, bar)
   }
 

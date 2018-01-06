@@ -5,6 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.dominikgruber.scalatorrent.Boot.quit
 import com.dominikgruber.scalatorrent.Coordinator.{AddTorrentFile, TorrentAddedSuccessfully, TorrentFileInvalid}
+import com.dominikgruber.scalatorrent.cli.FrontendActor.CommandResponse
 
 import scala.concurrent.duration._
 import scala.io.StdIn
@@ -28,7 +29,7 @@ case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
       case "quit" => quit()
       case "exit" => quit()
       case _ if !cmd.trim.isEmpty =>
-        println("Unknown command. Type 'help' for a list of all commands.")
+        frontend ! CommandResponse("Unknown command. Type 'help' for a list of all commands.")
       case _ =>
     }
     print("> ")
@@ -36,23 +37,26 @@ case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
 
   def addTorrentFile(file: String): Unit = {
     if (file.isEmpty) {
-      println("No file specified. See 'help' for further instructions.")
+      frontend ! CommandResponse("No file specified. See 'help' for further instructions.")
     } else {
       implicit val timeout: Timeout = Timeout(5.seconds)
       import scala.concurrent.ExecutionContext.Implicits.global
       (coordinator ? AddTorrentFile(file)) onSuccess {
         case TorrentAddedSuccessfully(file1, torrent) =>
-          print(s"Added $file1.\n> ")
+          frontend ! CommandResponse(s"Added $file1.\n> ")
         case TorrentFileInvalid(file1, message) =>
-          print(s"Failed to add $file1: $message\n> ")
+          frontend ! CommandResponse(s"Failed to add $file1: $message\n> ")
         case _ =>
       }
     }
   }
 
   def printHelp(): Unit = {
-    println("add <path>     Add a torrent file")
-    println("quit           Quit the client")
+    val help =
+      """add <path>     Add a torrent file
+        |quit           Quit the client
+      """.stripMargin
+    frontend ! CommandResponse(help)
   }
 
 }
