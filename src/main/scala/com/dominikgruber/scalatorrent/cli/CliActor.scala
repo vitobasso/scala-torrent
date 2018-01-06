@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState.ProgressReport
 
 import scala.concurrent.duration._
-import FrontendActor._
+import CliActor._
 
-case class FrontendActor() extends Actor with ActorLogging {
+case class CliActor() extends Actor with ActorLogging {
 
   var layout: Layout = Rendering.newLayout(5)
     .updated(4, title)
@@ -55,7 +55,7 @@ case class FrontendActor() extends Actor with ActorLogging {
 
 }
 
-case object FrontendActor {
+case object CliActor {
 
   val updateRate: FiniteDuration = 100.millis //TODO config
 

@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent
 
 import com.dominikgruber.scalatorrent.Torrent._
-import com.dominikgruber.scalatorrent.cli.FrontendActor.ReportPlease
+import com.dominikgruber.scalatorrent.cli.CliActor.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToRequest, SendToPeer}
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState.ProgressReport

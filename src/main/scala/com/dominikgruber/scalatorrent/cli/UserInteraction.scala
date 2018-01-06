@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import com.dominikgruber.scalatorrent.Boot.quit
 import com.dominikgruber.scalatorrent.Coordinator.{AddTorrentFile, TorrentAddedSuccessfully, TorrentFileInvalid}
-import com.dominikgruber.scalatorrent.cli.FrontendActor.CommandResponse
+import com.dominikgruber.scalatorrent.cli.CliActor.CommandResponse
 
 import scala.concurrent.duration._
 

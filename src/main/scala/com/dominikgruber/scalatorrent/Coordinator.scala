@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator._
-import com.dominikgruber.scalatorrent.cli.FrontendActor
+import com.dominikgruber.scalatorrent.cli.CliActor
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.HandshakeActor.TorrentInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager.CreateConnection
@@ -73,7 +73,7 @@ class Coordinator(frontend: ActorRef) extends Actor with ActorLogging with Askin
   def scheduleReport(torrent: ActorRef): Unit = {
     import scala.concurrent.duration._
     import scala.concurrent.ExecutionContext.Implicits.global
-    import com.dominikgruber.scalatorrent.cli.FrontendActor.{ReportPlease, updateRate}
+    import com.dominikgruber.scalatorrent.cli.CliActor.{ReportPlease, updateRate}
     context.system.scheduler.schedule(0.millis, updateRate, torrent, ReportPlease(frontend))
   }
 

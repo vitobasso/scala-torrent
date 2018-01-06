@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import com.dominikgruber.scalatorrent.cli.{FrontendActor, UserInteraction}
+import com.dominikgruber.scalatorrent.cli.{CliActor, UserInteraction}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -15,7 +15,7 @@ object Boot extends App {
 
   // Start actor system and coordinator actor
   val system = ActorSystem("scala-torrent")
-  val frontend: ActorRef = system.actorOf(Props(classOf[FrontendActor]), "frontend")
+  val frontend: ActorRef = system.actorOf(Props(classOf[CliActor]), "frontend")
   val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator], frontend), "coordinator")
   UserInteraction(frontend, coordinator)
 

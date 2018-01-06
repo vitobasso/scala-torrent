@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator.ConnectToPeer
 import com.dominikgruber.scalatorrent.PeerFinder.{FindPeers, PeersFound}
 import com.dominikgruber.scalatorrent.Torrent._
-import com.dominikgruber.scalatorrent.cli.FrontendActor.ReportPlease
+import com.dominikgruber.scalatorrent.cli.CliActor.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.{MetaInfo, PieceChecksum}
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.{NothingToRequest, SendToPeer}
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.{Interested, Piece, Request}
