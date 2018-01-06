@@ -9,31 +9,33 @@ import FrontendActor._
 case class FrontendActor() extends Actor with ActorLogging {
 
   val rendering = new Rendering
-  var layout: Layout = rendering.newLayout(4)
-    .updated(3, title)
+  var layout: Layout = rendering.newLayout(5)
+    .updated(4, title)
 
   override def preStart(): Unit = {
     scheduleRendering()
   }
 
   override def receive: Receive = {
-    case Render =>
+    case Render => // scheduled
       rendering.render(layout)
-    case r: ProgressReport => //from Torrent
-      updateProgress(r)
+    case ProgressReport(overall, perPiece) => //from Torrent
+      updateProgress(overall, perPiece)
+    case CommandResponse(response) =>
+      layout = layout.updated(1, response)
   }
 
-  def updateProgress(progress: ProgressReport): Unit = {
-    val total = percent(progress.overallProgress)
-    val bar = progressBar(progress)
-    layout = layout.updated(2, total).updated(1, bar)
+  def updateProgress(overall: Double, perPiece: Seq[Double]): Unit = {
+    val total = percent(overall)
+    val bar = progressBar(perPiece)
+    layout = layout.updated(3, total).updated(2, bar)
   }
 
   private val dots = List('.', ':', '|', '\u2016', '\u2588')
   private val dotStep = 1.toFloat / dots.size
 
-  private def progressBar(progress: ProgressReport): String =
-    progress.progressPerPiece
+  private def progressBar(progressPerPiece: Seq[Double]): String =
+    progressPerPiece
       .map(dotChar)
       .toList.mkString
 
@@ -58,8 +60,9 @@ case object FrontendActor {
 
   val updateRate: FiniteDuration = 100.millis //TODO config
 
-  case class ReportPlease(listener: ActorRef)
   case object Render
+  case class ReportPlease(listener: ActorRef)
+  case class CommandResponse(string: String)
 
 
   val title: String =
