@@ -4,7 +4,7 @@ import com.dominikgruber.scalatorrent.cli.Layout.Section
 
 /**
   * A vertical stack of sections to be rendered in the terminal.
-  * Indexes are zero based and from the bottom up.
+  * Indexes are zero based and count from the bottom up.
   */
 case class Layout(cols: Int, sections: List[Section] = Nil) {
   require(cols > 0)
@@ -12,7 +12,7 @@ case class Layout(cols: Int, sections: List[Section] = Nil) {
   def size: Int = sections.size
   def height: Int = sections.lastOption.map(_.top).getOrElse(0)
 
-  def addBottom(string: String): Layout = {
+  def addBottom(string: String): Layout = { //TODO updated(0, string)
     val newSection = section(string)
     val oldSectionsUpdated = sections.map(_.movedUp(newSection.height))
     val allSections = newSection :: oldSectionsUpdated

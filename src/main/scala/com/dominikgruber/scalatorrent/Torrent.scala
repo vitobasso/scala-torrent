@@ -100,6 +100,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
   def reportingProgress: Receive = {
     case ReportPlease(listener) => // from Coordinator
       listener ! transferState.report
+      peerFinder ! ReportPlease(listener)
   }
 
   def checkAndStore(index: Int, bytes: Bytes): Unit =
