@@ -2,32 +2,19 @@ package com.dominikgruber.scalatorrent.cli
 
 import com.dominikgruber.scalatorrent.cli.AnsiEscape._
 import com.dominikgruber.scalatorrent.cli.Layout.Section
-import org.jline.reader.{LineReader, LineReaderBuilder}
-import org.jline.terminal.{Terminal, TerminalBuilder}
 
 /**
   * Row coordinates count from the bottom up.
   */
 object Rendering {
 
-  private val terminal: Terminal = {
-    val terminal = TerminalBuilder.terminal
-    terminal.enterRawMode()
-    terminal
-  }
-
-  val reader: LineReader = {
-    LineReaderBuilder.builder().terminal(terminal).build()
-  }
-
-  private val cols: Int = terminal.getSize.getColumns
-
   /**
     * Keep track of how many lines we currently occupy in the terminal, to decide when to add more.
     */
   private var linesTaken: Int = 0
 
-  def newLayout(nSections: Int): Layout = Layout(cols, nSections)
+  def newLayout(nSections: Int): Layout =
+    Layout(TerminalSetup.cols, nSections)
 
   def render(layout: Layout): Unit = {
     val height = layout.height

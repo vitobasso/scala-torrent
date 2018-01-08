@@ -26,7 +26,7 @@ class TorrentStoringNewSpec extends TorrentSpec {
       storage.expectMsg(StatusPlease)
       torrent ! Status(BitSet.empty)
 
-      torrent ! ReportPlease
+      torrent ! ReportPlease(testActor)
       expectMsg(ProgressReport(0, Seq(0, 0, 0, 0)))
     }
 
@@ -51,7 +51,7 @@ class TorrentStoringNewSpec extends TorrentSpec {
     }
 
     "report further progress" in {
-      torrent ! ReportPlease
+      torrent ! ReportPlease(testActor)
       expectMsg(ProgressReport(1/4.0, Seq(0, 1, 0, 0)))
     }
 

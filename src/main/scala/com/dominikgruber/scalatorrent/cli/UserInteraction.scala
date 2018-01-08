@@ -20,7 +20,7 @@ case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
   // TMP
 
   // Listen for commands
-  Iterator.continually(Rendering.reader.readLine("> ")).foreach {
+  Iterator.continually(TerminalSetup.reader.readLine("> ")).foreach {
     case cmd if cmd.startsWith("add ") => addTorrentFile(cmd.substring(4).trim)
     case "help" => printHelp()
     case "quit" => quit()
