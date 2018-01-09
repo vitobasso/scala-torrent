@@ -10,8 +10,7 @@ import scala.concurrent.duration._
 
 case class CliActor() extends Actor with ActorLogging {
 
-  var layout: Layout = Rendering.newLayout(7)
-    .updated(6, title)
+  var layout: Layout = Rendering.newLayout(6)
 
   var torrent: Option[Torrent] = None //TODO multiple
 
@@ -29,7 +28,7 @@ case class CliActor() extends Actor with ActorLogging {
     case report: PeersReport => //from PeerFinder
       torrent = torrent.map(_.copy(peers = report))
     case CommandResponse(response) => //from UserInteraction
-      layout = layout.updated(1, response)
+      layout = layout.updated(0, response)
   }
 
   def render(torrent: Torrent) = {
@@ -42,13 +41,13 @@ case class CliActor() extends Actor with ActorLogging {
   def updateMeta(meta: FileMetaInfo): Unit = {
     val size: String = formatBytes(meta.totalBytes)
     val metaLine: String = s"${meta.name}, $size"
-    layout = layout.updated(5, metaLine)
+    layout = layout.updated(4, metaLine)
   }
 
   def updateProgress(progress: ProgressReport): Unit = {
     val progressLine: String = s"Progress: ${percent(progress.total)}"
     val bar: String = progressBar(progress.perPiece) + "\n "
-    layout = layout.updated(3, progressLine).updated(2, bar)
+    layout = layout.updated(2, progressLine).updated(1, bar)
   }
 
   def updatePeers(peers: PeersReport): Unit = {
@@ -58,7 +57,7 @@ case class CliActor() extends Actor with ActorLogging {
       .mkString(", ")
     val activity: String = if(peers.isActive) "~" else ""
     val peerLine: String = s"Peers $countsMsg $activity"
-    layout = layout.updated(4, peerLine)
+    layout = layout.updated(3, peerLine)
   }
 
   def scheduleRendering(): Unit = {
@@ -116,16 +115,5 @@ case object CliActor {
 
   def byteUnit(unit: Int): String =
     Seq("B", "kB", "MB", "GB", "TB").applyOrElse(unit, (_: Int) => "?")
-
-  val title: String =
-    """
-      |
-      |                    __            __                             __
-      |   ______________ _/ /___ _      / /_____  _____________  ____  / /_
-      |  / ___/ ___/ __ `/ / __ `/_____/ __/ __ \/ ___/ ___/ _ \/ __ \/ __/
-      | (__  ) /__/ /_/ / / /_/ /_____/ /_/ /_/ / /  / /  /  __/ / / / /_
-      |/____/\___/\__,_/_/\__,_/      \__/\____/_/  /_/   \___/_/ /_/\__/
-      |
-    """.stripMargin
 
 }
