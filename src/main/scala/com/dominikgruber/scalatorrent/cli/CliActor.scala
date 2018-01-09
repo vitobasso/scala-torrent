@@ -83,7 +83,7 @@ case object CliActor {
   private val dotStep = 1.toFloat / dots.size
 
   val PeerStatusOrder: Ordering[PeerStatus] = {
-    val ranking: Map[PeerStatus, Int] = Seq(Connected, New, Dead).zipWithIndex.toMap
+    val ranking: Map[PeerStatus, Int] = Seq(Connected, Trying, Dead).zipWithIndex.toMap
     Ordering.by(ranking)
   }
 

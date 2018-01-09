@@ -28,8 +28,8 @@ object PeerFinder {
   case class PeersReport(counts: Map[PeerStatus, Int], isActive: Boolean)
 
   sealed trait PeerStatus
-  case object New extends PeerStatus
   case object Connected extends PeerStatus
+  case object Trying extends PeerStatus
   case object Dead extends PeerStatus
 }
 
@@ -108,7 +108,7 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val uniquePeers: Set[PeerAddress] = unfiltered.toSet
     val newPeers: Set[PeerAddress] = uniquePeers.diff(peersKnown.keySet)
     logResult(source, unfiltered, newPeers)
-    peersKnown = peersKnown ++ newPeers.map(_ -> New)
+    peersKnown = peersKnown ++ newPeers.map(_ -> Trying)
     if(newPeers.nonEmpty) torrent ! PeersFound(newPeers)
   }
 
