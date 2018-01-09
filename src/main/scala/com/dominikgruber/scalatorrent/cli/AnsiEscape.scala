@@ -22,9 +22,4 @@ object AnsiEscape {
   val ClearLeft = esc("1K")
   val ClearLine = esc("2K")
 
-  def printAbove(lines: Int, str: String): Unit = {
-    val move = up() * lines
-    print(s"$Save$move\r$ClearLine$str$Restore")
-  }
-
 }

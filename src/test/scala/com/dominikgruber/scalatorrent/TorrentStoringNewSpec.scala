@@ -1,7 +1,7 @@
 package com.dominikgruber.scalatorrent
 
 import com.dominikgruber.scalatorrent.Torrent._
-import com.dominikgruber.scalatorrent.cli.ProgressReporting.ReportPlease
+import com.dominikgruber.scalatorrent.cli.CliActor.ReportPlease
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState._
@@ -26,7 +26,7 @@ class TorrentStoringNewSpec extends TorrentSpec {
       storage.expectMsg(StatusPlease)
       torrent ! Status(BitSet.empty)
 
-      torrent ! ReportPlease
+      torrent ! ReportPlease(testActor)
       expectMsg(ProgressReport(0, Seq(0, 0, 0, 0)))
     }
 
@@ -51,7 +51,7 @@ class TorrentStoringNewSpec extends TorrentSpec {
     }
 
     "report further progress" in {
-      torrent ! ReportPlease
+      torrent ! ReportPlease(testActor)
       expectMsg(ProgressReport(1/4.0, Seq(0, 1, 0, 0)))
     }
 

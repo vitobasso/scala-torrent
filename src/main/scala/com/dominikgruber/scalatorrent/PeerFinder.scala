@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.PeerFinder._
 import com.dominikgruber.scalatorrent.SelfInfo.selfPeerId
+import com.dominikgruber.scalatorrent.cli.CliActor.ReportPlease
 import com.dominikgruber.scalatorrent.dht.NodeActor
 import com.dominikgruber.scalatorrent.dht.NodeActor.{SearchPeers, StopSearch}
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage.InfoHash
@@ -20,10 +21,16 @@ object PeerFinder {
   case object FindPeers
   case class PeersFound(addresses: Set[PeerAddress])
 
+  /**
+    * @param counts peer counts per [[PeerStatus]]
+    * @param isActive is actively searching for peers
+    */
+  case class PeersReport(counts: Map[PeerStatus, Int], isActive: Boolean)
+
   sealed trait PeerStatus
-  case object New extends PeerStatus
   case object Connected extends PeerStatus
-  case object Closed extends PeerStatus
+  case object Trying extends PeerStatus
+  case object Dead extends PeerStatus
 }
 
 /**
@@ -47,7 +54,12 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     */
   var peersKnown: Map[PeerAddress, PeerStatus] = Map.empty
 
-  override def receive: Receive = {
+  override def receive: Receive =
+    findingPeers orElse
+      updatingPeerStatus orElse
+      reporting
+
+  private def findingPeers: Receive = {
     case FindPeers => // from Torrent
       start()
     case NodeActor.FoundPeers(_, peers) => // from NodeActor
@@ -59,15 +71,24 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
       handleResult(s.peers.map(_.address), "tracker")
     case f: TrackerResponseWithFailure =>
       log.warning(s"Request to Tracker failed: ${f.reason}")
+
+  }
+
+  private def updatingPeerStatus: Receive = {
     case Torrent.PeerConnected(peer) =>
       log.debug(s"Peer connected: $peer")
       peersKnown = peersKnown.updated(peer, Connected)
     case Torrent.PeerClosed(peer, cause) =>
       log.debug(s"Peer closed: $peer. Cause: $cause")
-      peersKnown = peersKnown.updated(peer, Closed)
+      peersKnown = peersKnown.updated(peer, Dead)
       if(!knowEnoughPeers && !isActive) {
         start()
       }
+  }
+
+  private def reporting: Receive = {
+    case ReportPlease(listener) => // from Torrent
+      listener ! PeersReport(peerCounts, isActive)
   }
 
   private def start(): Unit = {
@@ -87,7 +108,7 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val uniquePeers: Set[PeerAddress] = unfiltered.toSet
     val newPeers: Set[PeerAddress] = uniquePeers.diff(peersKnown.keySet)
     logResult(source, unfiltered, newPeers)
-    peersKnown = peersKnown ++ newPeers.map(_ -> New)
+    peersKnown = peersKnown ++ newPeers.map(_ -> Trying)
     if(newPeers.nonEmpty) torrent ! PeersFound(newPeers)
   }
 
@@ -97,11 +118,16 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val discardedMsg = s"Discarded $discarded previously known or duplicates."
     log.info(s"$newPeersMsg $discardedMsg")
   }
-  val targetNumPeers = 50 //TODO config
+  val targetNumPeers = 20 //TODO config
   def knowEnoughPeers: Boolean = {
-    val workingPeers = peersKnown.count { case (_, status) => status != PeerFinder.Closed }
+    val workingPeers = peersKnown.count { case (_, status) => status != PeerFinder.Dead }
     workingPeers >= targetNumPeers
   }
+
+  def peerCounts: Map[PeerStatus, Int] =
+    peersKnown
+      .groupBy { case (_, status) => status }
+      .mapValues(_.size)
 
   private def createTrackerActor(peerUrl: String): Option[ActorRef] = {
     val url: Regex = """(\w+)://(.*):(\d+)""".r
