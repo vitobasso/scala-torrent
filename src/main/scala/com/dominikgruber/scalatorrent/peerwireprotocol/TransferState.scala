@@ -235,5 +235,5 @@ case object TransferState {
   case class Pending(since: Long) extends BlockStatus
   case class Received(bytes: Bytes) extends BlockStatus
 
-  case class ProgressReport(overallProgress: Double, progressPerPiece: Seq[Double])
+  case class ProgressReport(total: Double, perPiece: Seq[Double])
 }

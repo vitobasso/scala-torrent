@@ -26,7 +26,7 @@ object Coordinator {
   case class IdentifyTorrent(infoHash: String)
 }
 
-class Coordinator(frontend: ActorRef) extends Actor with ActorLogging with Asking {
+class Coordinator(cli: ActorRef) extends Actor with ActorLogging with Asking {
 
   val conf: Config = ConfigFactory.load.getConfig("scala-torrent")
   val peerPort: Int = conf.getInt("bittorrent-port ")
@@ -63,9 +63,10 @@ class Coordinator(frontend: ActorRef) extends Actor with ActorLogging with Askin
       torrents(meta.hash) = (torrentActor, meta)
       scheduleReport(torrentActor)
       sender ! TorrentAddedSuccessfully(file, torrentActor)
+      cli ! meta.fileInfo
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        log.error("Failed to add torrent", e)
         sender ! TorrentFileInvalid(file, s"${e.getClass.getName}: ${e.getMessage}")
     }
   }
@@ -74,7 +75,7 @@ class Coordinator(frontend: ActorRef) extends Actor with ActorLogging with Askin
     import scala.concurrent.duration._
     import scala.concurrent.ExecutionContext.Implicits.global
     import com.dominikgruber.scalatorrent.cli.CliActor.{ReportPlease, updateRate}
-    context.system.scheduler.schedule(0.millis, updateRate, torrent, ReportPlease(frontend))
+    context.system.scheduler.schedule(0.millis, updateRate, torrent, ReportPlease(cli))
   }
 
   def createTorrentActor(meta: MetaInfo) = {

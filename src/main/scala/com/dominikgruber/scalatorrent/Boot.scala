@@ -15,9 +15,9 @@ object Boot extends App {
 
   // Start actor system and coordinator actor
   val system = ActorSystem("scala-torrent")
-  val frontend: ActorRef = system.actorOf(Props(classOf[CliActor]), "frontend")
-  val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator], frontend), "coordinator")
-  UserInteraction(frontend, coordinator)
+  val cli: ActorRef = system.actorOf(Props(classOf[CliActor]), "cli")
+  val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator], cli), "coordinator")
+  UserInteraction(cli, coordinator)
 
   def quit(): Unit = {
     println("Shutting down scala-torrent...")

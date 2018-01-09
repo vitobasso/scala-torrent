@@ -20,7 +20,12 @@ import scala.util.matching.Regex
 object PeerFinder {
   case object FindPeers
   case class PeersFound(addresses: Set[PeerAddress])
-  case class PeersReport(counts: Map[PeerStatus, Int], activelySearching: Boolean)
+
+  /**
+    * @param counts peer counts per [[PeerStatus]]
+    * @param isActive is actively searching for peers
+    */
+  case class PeersReport(counts: Map[PeerStatus, Int], isActive: Boolean)
 
   sealed trait PeerStatus
   case object New extends PeerStatus

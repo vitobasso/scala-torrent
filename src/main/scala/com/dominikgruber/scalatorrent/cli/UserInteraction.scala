@@ -9,7 +9,7 @@ import com.dominikgruber.scalatorrent.cli.CliActor.CommandResponse
 
 import scala.concurrent.duration._
 
-case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
+case class UserInteraction(cli: ActorRef, coordinator: ActorRef) {
 
   // TMP
   //  addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/ubuntu-12.04.5-desktop-amd64.iso.torrent")
@@ -26,21 +26,21 @@ case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
     case "quit" => quit()
     case "exit" => quit()
     case cmd if !cmd.trim.isEmpty =>
-      frontend ! CommandResponse("Unknown command. Type 'help' for a list of all commands.")
+      cli ! CommandResponse("Unknown command. Type 'help' for a list of all commands.")
     case _ =>
   }
 
   def addTorrentFile(file: String): Unit = {
     if (file.isEmpty) {
-      frontend ! CommandResponse("No file specified. See 'help' for further instructions.")
+      cli ! CommandResponse("No file specified. See 'help' for further instructions.")
     } else {
       implicit val timeout: Timeout = Timeout(5.seconds)
       import scala.concurrent.ExecutionContext.Implicits.global
       (coordinator ? AddTorrentFile(file)) onSuccess {
         case TorrentAddedSuccessfully(file1, torrent) =>
-          frontend ! CommandResponse(s"Added $file1.\n> ")
+          cli ! CommandResponse(s"Added $file1.\n> ")
         case TorrentFileInvalid(file1, message) =>
-          frontend ! CommandResponse(s"Failed to add $file1: $message\n> ")
+          cli ! CommandResponse(s"Failed to add $file1: $message\n> ")
         case _ =>
       }
     }
@@ -51,7 +51,7 @@ case class UserInteraction(frontend: ActorRef, coordinator: ActorRef) {
       """add <path>     Add a torrent file
         |quit           Quit the client
       """.stripMargin
-    frontend ! CommandResponse(help)
+    cli ! CommandResponse(help)
   }
 
 }
