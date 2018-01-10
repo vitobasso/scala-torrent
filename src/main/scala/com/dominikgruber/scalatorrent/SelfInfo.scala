@@ -18,8 +18,9 @@ object SelfInfo {
     * @todo Generate once and persist
     */
   lazy val selfPeerId: String = {
+    val clientId = AppConfig.bittorrentClientId
     def rand = 100000 + Random.nextInt(899999)
-    s"-SC0001-$rand$rand"
+    s"-$clientId-$rand$rand"
   }
 
   //TODO generate once and persist

@@ -1,5 +1,6 @@
 package com.dominikgruber.scalatorrent.util
 import akka.actor.{Actor, Cancellable}
+import com.dominikgruber.scalatorrent.AppConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -15,7 +16,7 @@ import scala.language.postfixOps
 trait ExtraPattern {
   selfType: Actor =>
 
-  val timeoutDuration: FiniteDuration = 30 seconds //TODO config
+  val timeoutDuration: FiniteDuration = AppConfig.tcpConnectTtl //TODO pass from specific actor
   val timeoutTask: Cancellable =
     context.system.scheduler.scheduleOnce(timeoutDuration) {
       if(context != null) {

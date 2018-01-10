@@ -19,7 +19,7 @@ object UdpSocket {
 
 case class UdpSocket(listener: ActorRef, port: Int) extends Actor with ActorLogging {
 
-  //TODO tolerate akka://scala-torrent/system/IO-UDP-FF/selectors/$a/0 - Can't assign requested address
+  //TODO recover from akka://scala-torrent/system/IO-UDP-FF/selectors/$a/0 - Can't assign requested address
   val udpManager: ActorRef = IO(Udp)(context.system)
 
   override def preStart(): Unit = {

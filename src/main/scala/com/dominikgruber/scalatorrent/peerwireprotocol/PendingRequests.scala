@@ -8,6 +8,7 @@ import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import scala.concurrent.duration._
 import com.dominikgruber.scalatorrent.Torrent.BlockSize
 import PendingRequests.RequestTTL
+import com.dominikgruber.scalatorrent.AppConfig
 
 class PendingRequests() {
   private var pendingRequests = Map.empty[PeerAddress, Map[Request, Long]]
@@ -55,6 +56,6 @@ class PendingRequests() {
 }
 
 object PendingRequests {
-  val RequestTTL: Duration = 10.seconds //TODO config
+  val RequestTTL: Duration = AppConfig.bittorrentRequestTtl
 }
 

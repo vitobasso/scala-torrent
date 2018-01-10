@@ -28,9 +28,8 @@ object Coordinator {
 
 class Coordinator(cli: ActorRef) extends Actor with ActorLogging with Asking {
 
-  val conf: Config = ConfigFactory.load.getConfig("scala-torrent")
-  val peerPort: Int = conf.getInt("bittorrent-port ")
-  val nodePort: Int = conf.getInt("dht-port ")
+  val peerPort: Int = AppConfig.peerPort
+  val nodePort: Int = AppConfig.nodePort
 
   val connManager: ActorRef = createConnManagerActor(peerPort)
   val torrents = mutable.Map.empty[String,(ActorRef, MetaInfo)]
@@ -74,8 +73,8 @@ class Coordinator(cli: ActorRef) extends Actor with ActorLogging with Asking {
   def scheduleReport(torrent: ActorRef): Unit = {
     import scala.concurrent.duration._
     import scala.concurrent.ExecutionContext.Implicits.global
-    import com.dominikgruber.scalatorrent.cli.CliActor.{ReportPlease, updateRate}
-    context.system.scheduler.schedule(0.millis, updateRate, torrent, ReportPlease(cli))
+    import com.dominikgruber.scalatorrent.cli.CliActor.{ReportPlease, refreshRate}
+    context.system.scheduler.schedule(0.millis, refreshRate, torrent, ReportPlease(cli))
   }
 
   def createTorrentActor(meta: MetaInfo) = {

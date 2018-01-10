@@ -1,6 +1,7 @@
 package com.dominikgruber.scalatorrent.cli
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.dominikgruber.scalatorrent.AppConfig
 import com.dominikgruber.scalatorrent.PeerFinder._
 import com.dominikgruber.scalatorrent.cli.CliActor._
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
@@ -62,14 +63,14 @@ case class CliActor() extends Actor with ActorLogging {
 
   def scheduleRendering(): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
-    context.system.scheduler.schedule(0.millis, updateRate, self, Render)
+    context.system.scheduler.schedule(0.millis, refreshRate, self, Render)
   }
 
 }
 
 case object CliActor {
 
-  val updateRate: FiniteDuration = 100.millis //TODO config
+  val refreshRate: FiniteDuration = AppConfig.cliRefreshRate
 
   case object Render
   case class ReportPlease(listener: ActorRef)

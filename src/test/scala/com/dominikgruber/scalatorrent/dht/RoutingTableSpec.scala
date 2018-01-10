@@ -31,7 +31,7 @@ class RoutingTableSpec extends UnitSpec with PrivateMethodTester {
     val (id, status) = nodes.head
     id shouldBe node("01")
     status.quality shouldBe Good
-    status.lastAcive should (be >= before and be <= after)
+    status.lastActive should (be >= before and be <= after)
   }
 
   it should "fit k nodes in the 1st bucket" in {

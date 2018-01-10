@@ -118,7 +118,7 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val discardedMsg = s"Discarded $discarded previously known or duplicates."
     log.info(s"$newPeersMsg $discardedMsg")
   }
-  val targetNumPeers = 20 //TODO config
+  val targetNumPeers = AppConfig.targetNumPeers
   def knowEnoughPeers: Boolean = {
     val workingPeers = peersKnown.count { case (_, status) => status != PeerFinder.Dead }
     workingPeers >= targetNumPeers

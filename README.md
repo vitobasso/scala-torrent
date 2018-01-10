@@ -5,11 +5,12 @@ A [BitTorrent](http://www.bittorrent.com) client under development in
 [Scala](http://www.scala-lang.org).
 
 While looking for a good case to learn [Akka](http://akka.io) I came
-across this project started by [TheDom](https://github.com/TheDom/scala-torrent),
-who did the work from Bencode to Handshakes.
+across this project started by [TheDom](https://github.com/TheDom/scala-torrent).
+They did the work from Bencode to Handshakes.
 
-I've been having fun with it since then. Learned some Akka, networking
-protocols and DHT's. Was able to download a whole movie and watch it :)
+I've been having fun with it since then. Learned some Akka, network
+protocols and Distributed Hash Tables.
+Was also able to download a movie and watch it :)
 
 ### Progress
 
@@ -37,6 +38,6 @@ protocols and DHT's. Was able to download a whole movie and watch it :)
 * CLI
   * [✔] Show progress
   * [TODO] Choose torrent file
-  * [TODO] Choose magnet
-  * [TODO] Show peers
+  * [TODO] Choose magnet link
+
 

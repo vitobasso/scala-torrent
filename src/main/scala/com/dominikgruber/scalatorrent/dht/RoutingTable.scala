@@ -137,7 +137,7 @@ object RoutingTable {
     Ordering.by(ranking)
   }
 
-  case class NodeEntry(info: NodeInfo, quality: Quality, lastAcive: Long) //TODO lastActive implies quality
+  case class NodeEntry(info: NodeInfo, quality: Quality, lastActive: Long) //TODO lastActive implies quality
   object NodeEntry {
     def fresh(info: NodeInfo) = NodeEntry(info, Good, System.currentTimeMillis)
   }
