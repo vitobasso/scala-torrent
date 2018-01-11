@@ -7,10 +7,8 @@ import com.dominikgruber.scalatorrent.tracker.PeerAddress
 
 import scala.concurrent.duration._
 import com.dominikgruber.scalatorrent.Torrent.BlockSize
-import PendingRequests.RequestTTL
-import com.dominikgruber.scalatorrent.AppConfig
 
-class PendingRequests() {
+class PendingRequests(requestTtl: Duration) {
   private var pendingRequests = Map.empty[PeerAddress, Map[Request, Long]]
 
   def drop(piece: Int): Unit =
@@ -50,12 +48,8 @@ class PendingRequests() {
 
   private def tooOld(sinceTime: Long): Boolean = {
     val lifeTime: Duration = (currentTimeMillis - sinceTime).millis
-    lifeTime > RequestTTL
+    lifeTime > requestTtl
   }
 
-}
-
-object PendingRequests {
-  val RequestTTL: Duration = AppConfig.bittorrentRequestTtl
 }
 

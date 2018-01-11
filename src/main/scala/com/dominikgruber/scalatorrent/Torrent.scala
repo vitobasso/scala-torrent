@@ -16,28 +16,15 @@ import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.BitSet
+import scala.concurrent.duration.Duration
 
-object Torrent {
-  /**
-    * 16kB is standard. Sending a request with more might result in the peer dropping the connection
-    * https://wiki.theory.org/index.php/BitTorrentSpecification#Info_in_Single_File_Mode
-    */
-  val BlockSize: Int = 16 * 1024
-  case class PeerReady(conn: ActorRef, peer: Peer)
-  case class PeerConnected(peer: PeerAddress)
-  case class PeerClosed(peer: PeerAddress, cause: Option[String])
-  case class AreWeInterested(partsAvailable: BitSet)
-  case class NextRequest(peer: PeerAddress, partsAvailable: BitSet)
-  case class ReceivedPiece(piece: Piece, peer: PeerAddress, partsAvailable: BitSet)
-}
-
-class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn: Int)
+class Torrent(meta: MetaInfo, coordinator: ActorRef, config: Config)
   extends Actor with ActorLogging {
 
   //lazy prevents unwanted init before overwrite from test
   lazy val peerFinder: ActorRef = createPeerFinderActor()
   lazy val storage: ActorRef = createStorageActor()
-  val transferState = TransferState(meta)
+  val transferState = TransferState(meta, config.requestTtl)
   val checksum = PieceChecksum(meta)
 
   override def preStart(): Unit = {
@@ -125,7 +112,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
     }
 
   private def createPeerFinderActor() = {
-    val props = Props(classOf[PeerFinder], meta, peerPortIn, nodePortIn, self)
+    val props = PeerFinder.props(meta, self, config.peerFinder)
     context.actorOf(props, s"peer-finder")
   }
 
@@ -139,4 +126,23 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, peerPortIn: Int, nodePortIn
     context.actorOf(props, s"storage")
   }
 
+}
+
+object Torrent {
+
+  case class Config(requestTtl: Duration, peerFinder: PeerFinder.Config)
+  def props(meta: MetaInfo, coordinator: ActorRef, config: Config) =
+    Props(classOf[Torrent], meta, coordinator, config)
+
+  /**
+    * 16kB is standard. Sending a request with more might result in the peer dropping the connection
+    * https://wiki.theory.org/index.php/BitTorrentSpecification#Info_in_Single_File_Mode
+    */
+  val BlockSize: Int = 16 * 1024
+  case class PeerReady(conn: ActorRef, peer: Peer)
+  case class PeerConnected(peer: PeerAddress)
+  case class PeerClosed(peer: PeerAddress, cause: Option[String])
+  case class AreWeInterested(partsAvailable: BitSet)
+  case class NextRequest(peer: PeerAddress, partsAvailable: BitSet)
+  case class ReceivedPiece(piece: Piece, peer: PeerAddress, partsAvailable: BitSet)
 }

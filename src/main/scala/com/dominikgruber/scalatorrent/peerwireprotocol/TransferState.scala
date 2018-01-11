@@ -10,6 +10,7 @@ import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.{BitSet, mutable}
+import scala.concurrent.duration.Duration
 import scala.util.Random
 
 /**
@@ -19,7 +20,7 @@ import scala.util.Random
   * Picks a random missing block to be downloaded next.
   *   - prefers completing a piece in progress over starting a new one
   */
-case class TransferState(metaInfo: MetaInfo) {
+case class TransferState(metaInfo: MetaInfo, requestTtl: Duration) {
 
   val totalPieces: Int = metaInfo.fileInfo.numPieces
   val blocksPerPiece: Int = metaInfo.fileInfo.pieceLength / BlockSize
@@ -29,7 +30,7 @@ case class TransferState(metaInfo: MetaInfo) {
     */
   private val pieces: mutable.Seq[PieceStatus] = mutable.Seq.fill(totalPieces)(Empty)
 
-  private val pending = new PendingRequests()
+  private val pending = new PendingRequests(requestTtl)
 
   /**
     * Add a received block to the transfer state.

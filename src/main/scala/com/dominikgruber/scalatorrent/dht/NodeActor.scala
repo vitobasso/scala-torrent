@@ -16,8 +16,9 @@ import scala.language.postfixOps
   * A node in a DHT network
   * http://www.bittorrent.org/beps/bep_0005.html
   */
-case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLogging {
+case class NodeActor(config: Config) extends Actor with ActorLogging {
 
+  val selfNode: NodeId = config.nodeId
   val routingTable = RoutingTable(selfNode) //TODO persist
   val peerMap = PeerMap() //TODO persist
   lazy val udp: ActorRef = createUdpSocketActor //lazy prevents init before overwrite from test
@@ -171,13 +172,16 @@ case class NodeActor(selfNode: NodeId, port: Int) extends Actor with ActorLoggin
   }
 
   private def createUdpSocketActor: ActorRef = {
-    val props = Props(classOf[UdpSocket], self, port)
+    val props = Props(classOf[UdpSocket], self, config.port)
     context.actorOf(props, s"udp-socket")
   }
 
 }
 
 case object NodeActor {
+
+  case class Config(nodeId: NodeId, port: Int)
+  def props(config: Config) = Props(classOf[NodeActor], config)
 
   val CleanupInterval: FiniteDuration = 5 minutes
 

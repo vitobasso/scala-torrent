@@ -5,23 +5,20 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
+import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager.Config
 import com.dominikgruber.scalatorrent.tracker.PeerAddress
 import com.dominikgruber.scalatorrent.util.{Asking, ExtraPattern}
 
-object ConnectionManager {
-  case class CreateConnection(remoteAddress: InetSocketAddress)
-  case class Connected(peerConn: ActorRef, address: PeerAddress)
-  case class Failed(message: Option[Throwable])
-}
+import scala.concurrent.duration.FiniteDuration
 
-class ConnectionManager(portIn: Int)
+class ConnectionManager(config: Config)
   extends Actor with ActorLogging with Asking {
 
   val coordinator: ActorRef = context.parent
   val tcpManager: ActorRef = IO(Tcp)(context.system)
 
   override def preStart(): Unit = {
-    val endpoint = new InetSocketAddress("localhost", portIn)
+    val endpoint = new InetSocketAddress("localhost", config.portIn)
     tcpManager ! Tcp.Bind(self, endpoint)
   }
 
@@ -49,6 +46,7 @@ class ConnectionManager(portIn: Int)
 
   class ConnectionRequestActor(remoteAddress: InetSocketAddress, originalSender: ActorRef)
     extends Actor with ActorLogging with ExtraPattern {
+    override val timeoutDuration: FiniteDuration = config.tcpTimeout
     tcpManager ! Connect(remoteAddress)
     override def receive: Receive = {
       case Tcp.Connected(addr, _) => // outbound, from Tcp connection
@@ -72,4 +70,14 @@ class ConnectionManager(portIn: Int)
     tcpManager ! Unbind
   }
 
+}
+
+object ConnectionManager {
+
+  case class Config(portIn: Int, tcpTimeout: FiniteDuration)
+  def props(config: Config) = Props(classOf[ConnectionManager], config)
+
+  case class CreateConnection(remoteAddress: InetSocketAddress)
+  case class Connected(peerConn: ActorRef, address: PeerAddress)
+  case class Failed(message: Option[Throwable])
 }

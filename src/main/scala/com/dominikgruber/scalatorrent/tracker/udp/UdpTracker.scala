@@ -3,19 +3,19 @@ package com.dominikgruber.scalatorrent.tracker.udp
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets.ISO_8859_1
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.{IO, UdpConnected}
 import akka.util.ByteString
-import com.dominikgruber.scalatorrent.SelfInfo
+import com.dominikgruber.scalatorrent.PeerFinder.TrackerConfig
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
 import com.dominikgruber.scalatorrent.tracker.Peer
-import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.{SendEventStarted, TrackerConnectionFailed}
+import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.SendEventStarted
 import com.dominikgruber.scalatorrent.tracker.http.TrackerResponseWithSuccess
 import com.dominikgruber.scalatorrent.tracker.udp.UdpEncoding._
 
 import scala.util.{Failure, Random, Success}
 
-case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress, port: Int) extends Actor with ActorLogging {
+case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress, config: TrackerConfig) extends Actor with ActorLogging {
 
   val udpManager: ActorRef = IO(UdpConnected)(context.system)
 
@@ -45,14 +45,14 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress, port: Int) 
   def expectingConnectResponse(requester: ActorRef, udpConn: ActorRef, trans: TransactionId, dl: Long, ul: Long): Receive = {
     case UdpConnected.Received(data) =>
       val torrentHash = InfoHash.validate(meta.infoHash.toArray)
-      val peerId = PeerId.validate(SelfInfo.selfPeerId.getBytes(ISO_8859_1))
+      val peerId = PeerId.validate(config.peerId.getBytes(ISO_8859_1))
       val left: Long = meta.totalBytes //TODO get progress
       val key = 123L //TODO
       decode(data.toArray) match {
         case Success(c: ConnectResponse) =>
           log.debug(s"Received $c")
           val announceReq = AnnounceRequest(
-            c.conn, trans, torrentHash, peerId, dl, left, ul, AnnounceEvent.Started, key = key, port = port)
+            c.conn, trans, torrentHash, peerId, dl, left, ul, AnnounceEvent.Started, key = key, port = config.portIn)
           val announceReqBytes = ByteString(encode(announceReq))
           log.debug(s"Sending $announceReq")
           udpConn ! UdpConnected.Send(announceReqBytes)
@@ -70,4 +70,9 @@ case class UdpTracker(meta: FileMetaInfo, remote: InetSocketAddress, port: Int) 
     case UdpConnected.Disconnected => context.stop(self)
   }
 
+}
+
+object UdpTracker {
+  def props(meta: FileMetaInfo, remote: InetSocketAddress, config: TrackerConfig) =
+    Props(classOf[UdpTracker], meta, remote, config)
 }
