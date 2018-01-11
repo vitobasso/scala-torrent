@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Torrent._
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing._
@@ -10,12 +10,6 @@ import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.util.Asking
 
 import scala.collection.BitSet
-
-object PeerSharing {
-  case class SendToPeer(msg: MessageOrHandshake)
-  case object NothingToRequest
-  case class Closed(peer: PeerAddress)
-}
 
 class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
   extends Actor with ActorLogging with Asking {
@@ -81,4 +75,12 @@ class PeerSharing(peerConn: ActorRef, peer: Peer, metaInfo: MetaInfo)
     BitSet(indexesOfTrue: _*)
   }
 
+}
+
+object PeerSharing {
+  def props(peerConn: ActorRef, peer: Peer, meta: MetaInfo) = Props(classOf[PeerSharing], peerConn, peer, meta)
+
+  case class SendToPeer(msg: MessageOrHandshake)
+  case object NothingToRequest
+  case class Closed(peer: PeerAddress)
 }

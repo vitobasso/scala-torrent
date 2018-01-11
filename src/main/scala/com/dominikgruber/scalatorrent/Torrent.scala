@@ -116,12 +116,12 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, config: Config)
   }
 
   private def createPeerSharingActor(peerConn: ActorRef, peer: Peer) = {
-    val props = Props(classOf[PeerSharing], peerConn, peer, meta)
+    val props = PeerSharing.props(peerConn, peer, meta)
     context.actorOf(props, s"peer-sharing-${peer.address}")
   }
 
   private def createStorageActor(): ActorRef = {
-    val props = Props(classOf[Storage], meta.fileInfo)
+    val props = Storage.props(meta.fileInfo)
     context.actorOf(props, s"storage")
   }
 

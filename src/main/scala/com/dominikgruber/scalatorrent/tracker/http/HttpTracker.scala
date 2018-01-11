@@ -168,7 +168,6 @@ class HttpTracker(metainfo: MetaInfo, config: TrackerConfig) extends Actor with 
 
 object HttpTracker {
 
-
   def props(metainfo: MetaInfo, config: TrackerConfig) = Props(classOf[HttpTracker], metainfo, config)
 
   case class SendEventStarted(downloaded: Long, uploaded: Long)

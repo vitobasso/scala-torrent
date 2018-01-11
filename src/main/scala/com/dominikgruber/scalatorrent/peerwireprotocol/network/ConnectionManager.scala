@@ -35,7 +35,7 @@ class ConnectionManager(config: Config)
   }
 
   private def createPeerConnection(address: PeerAddress, tcpConn: ActorRef): ActorRef = {
-    val props = Props(classOf[PeerConnection], tcpConn)
+    val props = PeerConnection.props(tcpConn)
     context.actorOf(props, s"peer-connection-$address")
   }
 

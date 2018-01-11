@@ -18,7 +18,7 @@ import scala.concurrent.duration.FiniteDuration
 
 class Coordinator(cli: ActorRef, config: Config) extends Actor with ActorLogging with Asking {
 
-  val connManager: ActorRef = createConnManagerActor(config.peerPort)
+  val connManager: ActorRef = createConnManagerActor
   val torrents = mutable.Map.empty[String,(ActorRef, MetaInfo)]
 
   override def receive: Receive = {
@@ -81,7 +81,7 @@ class Coordinator(cli: ActorRef, config: Config) extends Actor with ActorLogging
     context.actorOf(props, s"handshake-in-$address")
   }
 
-  def createConnManagerActor(peerPort: Int): ActorRef = {
+  def createConnManagerActor: ActorRef = {
     val props = ConnectionManager.props(config.connMan)
     context.actorOf(props, "connection-manager")
   }
@@ -122,7 +122,7 @@ class Coordinator(cli: ActorRef, config: Config) extends Actor with ActorLogging
 
 object Coordinator {
 
-  case class Config(peerPort: Int, progressRefreshRate: FiniteDuration, connMan: ConnectionManager.Config, handshake: HandshakeActor.Config, torrent: Torrent.Config)
+  case class Config(progressRefreshRate: FiniteDuration, connMan: ConnectionManager.Config, handshake: HandshakeActor.Config, torrent: Torrent.Config)
   def props(cli: ActorRef, config: Config) = Props(classOf[Coordinator], cli, config)
 
   case class AddTorrentFile(file: String)

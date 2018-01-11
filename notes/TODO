@@ -22,7 +22,6 @@
 
 - improve
     scala 2.12
-    ~ centralized init & passing of config, random ids
     replace Props(new ..) with props factory
     hash calculation
         (share the solution)
