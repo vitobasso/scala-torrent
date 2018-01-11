@@ -16,7 +16,6 @@ import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.util.ByteUtil.Bytes
 
 import scala.collection.BitSet
-import scala.concurrent.duration.Duration
 
 class Torrent(meta: MetaInfo, coordinator: ActorRef, config: Config)
   extends Actor with ActorLogging {
@@ -24,7 +23,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, config: Config)
   //lazy prevents unwanted init before overwrite from test
   lazy val peerFinder: ActorRef = createPeerFinderActor()
   lazy val storage: ActorRef = createStorageActor()
-  val transferState = TransferState(meta, config.requestTtl)
+  val transferState = TransferState(meta, config.transferState)
   val checksum = PieceChecksum(meta)
 
   override def preStart(): Unit = {
@@ -130,7 +129,7 @@ class Torrent(meta: MetaInfo, coordinator: ActorRef, config: Config)
 
 object Torrent {
 
-  case class Config(requestTtl: Duration, peerFinder: PeerFinder.Config)
+  case class Config(transferState: TransferState.Config, peerFinder: PeerFinder.Config)
   def props(meta: MetaInfo, coordinator: ActorRef, config: Config) =
     Props(classOf[Torrent], meta, coordinator, config)
 

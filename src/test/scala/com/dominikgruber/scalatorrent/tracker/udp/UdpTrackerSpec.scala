@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, Props}
 import akka.io.UdpConnected
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import com.dominikgruber.scalatorrent.PeerFinder.TrackerConfig
 import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.tracker.http.HttpTracker.SendEventStarted
 import com.dominikgruber.scalatorrent.tracker.http.TrackerResponseWithSuccess
@@ -20,7 +21,8 @@ class UdpTrackerSpec extends ActorSpec {
   val meta = Mocks.fileMetaInfo()
   val peerAddr: InetSocketAddress = Mocks.peer.address
   val tracker: ActorRef = {
-    def createActor = new UdpTracker(meta, peerAddr, 0) {
+    val config = TrackerConfig(Mocks.peerId, 0)
+    def createActor = new UdpTracker(meta, peerAddr, config) {
       override val udpManager: ActorRef = outer.udpManager.ref
     }
     system.actorOf(Props(createActor), "tracker")

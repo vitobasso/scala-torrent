@@ -26,6 +26,7 @@ object Mocks extends MockitoSugar {
   }
 
   val peer = Peer(None, "peer-ip", 0)
+  val peerId = "-TEST00-0123456789AB"
 
   val checksum = {
     val checksum = mock[PieceChecksum]

@@ -16,7 +16,7 @@ trait ExtraPattern {
   selfType: Actor =>
 
   val timeoutDuration: FiniteDuration
-  val timeoutTask: Cancellable =
+  lazy val timeoutTask: Cancellable = //lazy: wait timeoutDuration init
     context.system.scheduler.scheduleOnce(timeoutDuration) {
       if(context != null) {
         onTimeout()

@@ -37,7 +37,7 @@ class TorrentStoringNewSpec extends TorrentSpec {
       val block0 = Piece(index, 0 * BlockSize, bytes0)
       torrent ! ReceivedPiece(block0, peer, allAvailable)
       storage.expectNoMsg()
-      for(_ <- 1 to SimultaneousRequests)
+      for(_ <- 1 to config.transferState.tcpPipelining)
         expectMsgType[SendToPeer]
 
       val bytes1 = Mocks.block(1.toByte)

@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{ActorRef, Props}
 import akka.testkit.TestProbe
 import com.dominikgruber.scalatorrent.Coordinator.IdentifyTorrent
+import com.dominikgruber.scalatorrent.SelfInfo
 import com.dominikgruber.scalatorrent.SelfInfo._
 import com.dominikgruber.scalatorrent.Torrent.PeerReady
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
@@ -20,15 +21,18 @@ class HandshakeActorSpec extends ActorSpec {
   val address = new InetSocketAddress("dummy", 123)
   val meta: MetaInfo = Mocks.metaInfo()
   val theirPeerId = "their-peer-id-has-20"
-  val theirHandshake = Handshake(pstr, extension, theirPeerId, Mocks.infoHash)
-  val ourHandshake = Handshake(`pstr`, `extension`, `selfPeerId`, meta.fileInfo.infoHash)
+  val selfInfo = SelfInfo("test")
+  val theirHandshake = Handshake(selfInfo.pstr, selfInfo.extension, theirPeerId, Mocks.infoHash)
+  val ourHandshake = Handshake(selfInfo.pstr, selfInfo.extension, selfInfo.peerId, meta.fileInfo.infoHash)
   val coordinator = TestProbe("coordinator")
   val torrent = TestProbe("torrent")
   val peerConn = TestProbe("peer-connection")
+  val config = HandshakeActor.Config(selfInfo.pstr, selfInfo.extension, selfInfo.peerId)
 
   "an OutboundHandshake actor" must {
     val outboundHandshake = {
-      def createActor = new OutboundHandshake(peerConn.ref, address, meta, torrent.ref)
+
+      def createActor = new OutboundHandshake(peerConn.ref, address, config, meta, torrent.ref)
       system.actorOf(Props(createActor), "outbound-handshake")
     }
     watch(outboundHandshake)
@@ -48,7 +52,7 @@ class HandshakeActorSpec extends ActorSpec {
 
   "an InboundHandshake actor" must {
     val inboundHandshake = {
-      def createActor = new InboundHandshake(peerConn.ref, address){
+      def createActor = new InboundHandshake(peerConn.ref, address, config){
         override val coordinator: ActorRef = outer.coordinator.ref
       }
       system.actorOf(Props(createActor), "inbound-handshake")

@@ -2,7 +2,7 @@ package com.dominikgruber.scalatorrent.peerwireprotocol
 
 import java.lang.System.currentTimeMillis
 
-import com.dominikgruber.scalatorrent.Torrent._
+import com.dominikgruber.scalatorrent.Torrent.BlockSize
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState._
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.Request
@@ -20,7 +20,7 @@ import scala.util.Random
   * Picks a random missing block to be downloaded next.
   *   - prefers completing a piece in progress over starting a new one
   */
-case class TransferState(metaInfo: MetaInfo, requestTtl: Duration) {
+case class TransferState(metaInfo: MetaInfo, config: Config) {
 
   val totalPieces: Int = metaInfo.fileInfo.numPieces
   val blocksPerPiece: Int = metaInfo.fileInfo.pieceLength / BlockSize
@@ -30,7 +30,7 @@ case class TransferState(metaInfo: MetaInfo, requestTtl: Duration) {
     */
   private val pieces: mutable.Seq[PieceStatus] = mutable.Seq.fill(totalPieces)(Empty)
 
-  private val pending = new PendingRequests(requestTtl)
+  private val pending = new PendingRequests(config.requestTtl)
 
   /**
     * Add a received block to the transfer state.
@@ -85,7 +85,7 @@ case class TransferState(metaInfo: MetaInfo, requestTtl: Duration) {
     * How many requests we can still add to the pending ones
     */
   private def requestBudget(peer: PeerAddress): Int =
-    SimultaneousRequests - pending.size(peer)
+    config.tcpPipelining - pending.size(peer)
 
   private def nextRequests(peer: PeerAddress, budget: Int, available: BitSet): Option[Seq[Request]] =
     if(budget <= 0) Some(Seq.empty)
@@ -224,7 +224,13 @@ case class TransferState(metaInfo: MetaInfo, requestTtl: Duration) {
 }
 
 case object TransferState {
-  val SimultaneousRequests: Int = 5 //pipelining: saturate tcp connection for performance
+
+  /**
+    *
+    * @param tcpPipelining saturate tcp connection with simultaneous requests for performance
+    * @param requestTtl to forget old pending requests, so they can me sent again
+    */
+  case class Config(tcpPipelining: Int, requestTtl: Duration)
 
   sealed trait PieceStatus
   case object Empty extends PieceStatus

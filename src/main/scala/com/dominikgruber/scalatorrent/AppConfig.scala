@@ -3,7 +3,7 @@ package com.dominikgruber.scalatorrent
 import com.dominikgruber.scalatorrent.PeerFinder.TrackerConfig
 import com.dominikgruber.scalatorrent.cli.CliActor
 import com.dominikgruber.scalatorrent.dht.NodeActor
-import com.dominikgruber.scalatorrent.peerwireprotocol.HandshakeActor
+import com.dominikgruber.scalatorrent.peerwireprotocol.{HandshakeActor, TransferState}
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -13,6 +13,7 @@ case class AppConfig(conf: Config) {
 
   val bitTorrent = BitTorrentConfig(
     conf.getString("bittorrent-client-id"),
+    conf.getInt("bittorrent-tcp-pipelining"),
     conf.getDuration("bittorrent-request-ttl").toMillis.millis,
     conf.getInt("bittorrent-port ")
   )
@@ -30,7 +31,8 @@ case class AppConfig(conf: Config) {
   val tracker = TrackerConfig(self.peerId, bitTorrent.port)
   val node = NodeActor.Config(self.nodeId, dht.port)
   val peerFinder = PeerFinder.Config(conf.getInt("target-num-peers"), tracker, node)
-  val torrent = Torrent.Config(bitTorrent.requestTtl, peerFinder)
+  val transferState = TransferState.Config(bitTorrent.tcpPipelining, bitTorrent.requestTtl)
+  val torrent = Torrent.Config(transferState, peerFinder)
   val cli = CliActor.Config(conf.getDuration("cli-refresh-rate").toMillis.millis)
   val connMan = ConnectionManager.Config(bitTorrent.port, tcp.timeout)
   val handshake = HandshakeActor.Config(self.pstr, self.extension, self.peerId)
@@ -44,7 +46,7 @@ object AppConfig {
   )
 }
 
-case class BitTorrentConfig(clientId: String, requestTtl: Duration, port: Int)
+case class BitTorrentConfig(clientId: String, tcpPipelining: Int, requestTtl: Duration, port: Int)
 case class DhtConfig(port: Int)
 case class TcpConfig(timeout: FiniteDuration)
 
