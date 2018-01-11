@@ -1,6 +1,6 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.io.Tcp._
 import akka.util.ByteString
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
@@ -9,11 +9,6 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.network.MessageBuffer._
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.ToByteString._
 import com.dominikgruber.scalatorrent.util.ByteUtil.Hex
-
-object PeerConnection {
-  case class SetListener(listener: ActorRef)
-  case object Closed
-}
 
 class PeerConnection(tcp: ActorRef)
   extends Actor with ActorLogging with Stash {
@@ -71,6 +66,13 @@ class PeerConnection(tcp: ActorRef)
     tcp ! Abort
   }
 
+}
+
+object PeerConnection {
+  def props(tcp: ActorRef) = Props(classOf[PeerConnection], tcp)
+
+  case class SetListener(listener: ActorRef)
+  case object Closed
 }
 
 object ToByteString {

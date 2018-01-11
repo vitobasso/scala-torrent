@@ -1,17 +1,16 @@
 package com.dominikgruber.scalatorrent.cli
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
-import com.dominikgruber.scalatorrent.PeerFinder._
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import com.dominikgruber.scalatorrent.PeerFinder.{PeersReport, PeerStatus, Connected, Trying, Dead}
 import com.dominikgruber.scalatorrent.cli.CliActor._
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
 import com.dominikgruber.scalatorrent.peerwireprotocol.TransferState.ProgressReport
 
 import scala.concurrent.duration._
 
-case class CliActor() extends Actor with ActorLogging {
+case class CliActor(config: Config) extends Actor with ActorLogging {
 
   var layout: Layout = Rendering.newLayout(6)
-
   var torrent: Option[Torrent] = None //TODO multiple
 
   override def preStart(): Unit = {
@@ -62,14 +61,15 @@ case class CliActor() extends Actor with ActorLogging {
 
   def scheduleRendering(): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
-    context.system.scheduler.schedule(0.millis, updateRate, self, Render)
+    context.system.scheduler.schedule(0.millis, config.refreshRate, self, Render)
   }
 
 }
 
 case object CliActor {
 
-  val updateRate: FiniteDuration = 100.millis //TODO config
+  case class Config(refreshRate: FiniteDuration)
+  def props(config: Config) = Props(classOf[CliActor], config)
 
   case object Render
   case class ReportPlease(listener: ActorRef)

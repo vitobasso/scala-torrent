@@ -4,9 +4,16 @@ import com.dominikgruber.scalatorrent.dht.message.DhtMessage.NodeId
 
 import scala.util.Random
 
-object SelfInfo {
+case class SelfInfo(clientId: String) {
 
+  /**
+    * Protocol string. Sent in BitTorrent handshakes to identify the protocol.
+    */
   val pstr = "BitTorrent protocol"
+
+  /**
+    * Sent in BitTorrent handshakes.
+    */
   val extension = Vector[Byte](0, 0, 0, 0, 0, 0, 0, 1)
 
   /**
@@ -17,9 +24,9 @@ object SelfInfo {
     *
     * @todo Generate once and persist
     */
-  lazy val selfPeerId: String = {
+  lazy val peerId: String = {
     def rand = 100000 + Random.nextInt(899999)
-    s"-SC0001-$rand$rand"
+    s"-$clientId-$rand$rand"
   }
 
   //TODO generate once and persist

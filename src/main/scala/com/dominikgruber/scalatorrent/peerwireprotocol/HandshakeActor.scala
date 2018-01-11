@@ -1,28 +1,24 @@
 package com.dominikgruber.scalatorrent.peerwireprotocol
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.Coordinator.IdentifyTorrent
-import com.dominikgruber.scalatorrent.SelfInfo.{extension, pstr, selfPeerId}
 import com.dominikgruber.scalatorrent.Torrent.PeerReady
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
-import com.dominikgruber.scalatorrent.peerwireprotocol.HandshakeActor.TorrentInfo
+import com.dominikgruber.scalatorrent.peerwireprotocol.HandshakeActor.{Config, TorrentInfo}
 import com.dominikgruber.scalatorrent.peerwireprotocol.PeerSharing.SendToPeer
 import com.dominikgruber.scalatorrent.peerwireprotocol.message.Handshake
 import com.dominikgruber.scalatorrent.tracker.{Peer, PeerAddress}
 import com.dominikgruber.scalatorrent.util.Asking
 
-object HandshakeActor {
-  case class TorrentInfo(metaInfo: MetaInfo, torrent: ActorRef)
-}
-
 trait HandshakeActor extends Actor with ActorLogging with Asking {
   selfType: {
     val peerConn: ActorRef
     val address: PeerAddress
+    val config: Config
   } =>
 
   def sendHandshake(meta: MetaInfo): Unit = {
-    val handshake = Handshake(pstr, extension, selfPeerId, meta.fileInfo.infoHash)
+    val handshake = Handshake(config.pstr, config.extension, config.peerId, meta.fileInfo.infoHash)
     peerConn ! SendToPeer(handshake)
   }
 
@@ -32,8 +28,14 @@ trait HandshakeActor extends Actor with ActorLogging with Asking {
     context.stop(self)
   }
 }
+object HandshakeActor {
+  case class Config(pstr: String, extension: Vector[Byte], peerId: String)
 
-class OutboundHandshake(val peerConn: ActorRef, val address: PeerAddress, metaInfo: MetaInfo, torrent: ActorRef)
+  case class TorrentInfo(metaInfo: MetaInfo, torrent: ActorRef)
+}
+
+class OutboundHandshake(val peerConn: ActorRef, val address: PeerAddress, val config: Config,
+                        metaInfo: MetaInfo, torrent: ActorRef)
   extends HandshakeActor {
 
   override def preStart(): Unit = {
@@ -47,8 +49,12 @@ class OutboundHandshake(val peerConn: ActorRef, val address: PeerAddress, metaIn
   }
 
 }
+object OutboundHandshake {
+  def props(peerConn: ActorRef, address: PeerAddress, config: Config, metaInfo: MetaInfo, torrent: ActorRef) =
+  Props(classOf[OutboundHandshake], peerConn, address, config, metaInfo, torrent)
+}
 
-class InboundHandshake(val peerConn: ActorRef, val address: PeerAddress)
+class InboundHandshake(val peerConn: ActorRef, val address: PeerAddress, val config: Config)
   extends HandshakeActor {
 
   val coordinator: ActorRef = context.parent
@@ -64,4 +70,7 @@ class InboundHandshake(val peerConn: ActorRef, val address: PeerAddress)
   }
 
 }
-
+object InboundHandshake {
+  def props(peerConn: ActorRef, address: PeerAddress, config: Config) =
+    Props(classOf[InboundHandshake], peerConn, address, config)
+}

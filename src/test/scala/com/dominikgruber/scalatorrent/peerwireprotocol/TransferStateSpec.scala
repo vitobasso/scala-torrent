@@ -8,16 +8,17 @@ import com.dominikgruber.scalatorrent.util.{Mocks, UnitSpec}
 import org.scalatest.PrivateMethodTester
 
 import scala.collection.{BitSet, mutable}
+import scala.concurrent.duration._
 
 class TransferStateSpec extends UnitSpec with PrivateMethodTester {
 
   it should "begin with all blocks missing" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.getPieces shouldBe Seq(Empty, Empty, Empty)
   }
 
   it should "mark a block" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.addBlock(1, 1, data)
 
     val Seq(Empty, InProgress(blocks), Empty) = state.getPieces
@@ -26,14 +27,14 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "mark a whole piece" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.markPieceCompleted(2)
 
     state.getPieces shouldBe Seq(Empty, Empty, Stored)
   }
 
   it should "mark a piece when marking the last block" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.addBlock(1, 0, data)
     state.addBlock(1, 1, data)
 
@@ -41,7 +42,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "ignore a redundant mark" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
 
     state.addBlock(1, 0, data)
     state.addBlock(1, 0, data)
@@ -55,7 +56,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "only pick missing parts" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.addBlock(0, 0, data)
     state.addBlock(0, 1, data)
     state.addBlock(1, 0, data)
@@ -67,7 +68,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "only pick missing blocks" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.addBlock(0, 0, data)
     state.addBlock(1, 0, data)
     state.addBlock(2, 0, data)
@@ -78,7 +79,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   }
 
   it should "pick None when complete" in {
-    val state = TransferState(meta)
+    val state = TransferState(meta, config)
     state.addBlock(0, 0, data)
     state.addBlock(0, 1, data)
     state.addBlock(1, 0, data)
@@ -92,6 +93,7 @@ class TransferStateSpec extends UnitSpec with PrivateMethodTester {
   val meta: MetaInfo = Mocks.metaInfo(
     totalLength = 6 * BlockSize,
     pieceLength = 2 * BlockSize)
+  val config = TransferState.Config(5, 0.second)
   val allAvailable = BitSet(0, 1, 2)
   val data: Array[Byte] = Array.empty[Byte]
 

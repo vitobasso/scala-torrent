@@ -1,16 +1,13 @@
 package com.dominikgruber.scalatorrent.dht
 
-import java.nio.charset.StandardCharsets
-
 import akka.actor.{ActorRef, Props}
 import com.dominikgruber.scalatorrent.SelfInfo
+import com.dominikgruber.scalatorrent.dht.NodeActor.{FoundPeers, SearchPeers}
 import com.dominikgruber.scalatorrent.dht.message.DhtMessage._
-import com.dominikgruber.scalatorrent.util.{ActorIT, ByteUtil}
+import com.dominikgruber.scalatorrent.util.ActorIT
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
-
-import com.dominikgruber.scalatorrent.dht.NodeActor.{FoundPeers, SearchPeers}
 
 
 class NodeActorIT extends ActorIT with Eventually {
@@ -21,7 +18,7 @@ class NodeActorIT extends ActorIT with Eventually {
   "the NodeActor" should {
 
     val nodeActor: ActorRef = {
-      def createActor = new SpiedNodeActor(SelfInfo.nodeId)
+      def createActor = new SpiedNodeActor(config)
       syncStart(Props(createActor), "node")
     }
 
@@ -52,22 +49,13 @@ class NodeActorIT extends ActorIT with Eventually {
     expectMsgType[RoutingTable]
   }
 
+  lazy val selfInfo = SelfInfo("TEST00")
+  lazy val config = NodeActor.Config(selfInfo.nodeId, 50000)
   case object ReturnRoutingTable
-  class SpiedNodeActor(selfId: NodeId) extends NodeActor(selfId, 50000) {
+  class SpiedNodeActor(config: NodeActor.Config) extends NodeActor(config) {
     override def receive: Receive = super.receive.orElse {
       case ReturnRoutingTable => sender ! routingTable
     }
-  }
-
-  def node(idArg: String, ipArg: String, portArg: Int): NodeInfo = {
-    val idStr = new String(ByteUtil.bytes(idArg), StandardCharsets.ISO_8859_1)
-    val res: Either[String, NodeInfo] =
-      for {
-        id <- NodeId.validate(idStr).right
-        ip <- Ip.parse(ipArg).right
-        port <- Port.parse(portArg).right
-      } yield NodeInfo(id, Address(ip, port))
-    res.right.get
   }
 
   def infoHash(hex: String): InfoHash =

@@ -1,19 +1,10 @@
 package com.dominikgruber.scalatorrent.storage
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.dominikgruber.scalatorrent.metainfo.FileMetaInfo
 import com.dominikgruber.scalatorrent.storage.Storage._
 
 import scala.collection.BitSet
-
-object Storage {
-  case class Load(index: Int)
-  case class Store(index: Int, bytes: Array[Byte])
-  case class Loaded(index: Int, bytes: Array[Byte])
-  case object StatusPlease
-  case class Status(piecesWeHave: BitSet)
-  case object Complete
-}
 
 class Storage(meta: FileMetaInfo) extends Actor with ActorLogging {
 
@@ -44,4 +35,15 @@ class Storage(meta: FileMetaInfo) extends Actor with ActorLogging {
       }
   }
 
+}
+
+object Storage {
+  def props(meta: FileMetaInfo) = Props(classOf[Storage], meta)
+
+  case class Load(index: Int)
+  case class Store(index: Int, bytes: Array[Byte])
+  case class Loaded(index: Int, bytes: Array[Byte])
+  case object StatusPlease
+  case class Status(piecesWeHave: BitSet)
+  case object Complete
 }

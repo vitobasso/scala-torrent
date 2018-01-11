@@ -15,8 +15,8 @@ import scala.language.postfixOps
 trait ExtraPattern {
   selfType: Actor =>
 
-  val timeoutDuration: FiniteDuration = 30 seconds //TODO config
-  val timeoutTask: Cancellable =
+  val timeoutDuration: FiniteDuration
+  lazy val timeoutTask: Cancellable = //lazy: wait timeoutDuration init
     context.system.scheduler.scheduleOnce(timeoutDuration) {
       if(context != null) {
         onTimeout()

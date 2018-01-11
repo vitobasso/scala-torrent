@@ -3,7 +3,8 @@ package com.dominikgruber.scalatorrent.tracker.http
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets._
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import com.dominikgruber.scalatorrent.PeerFinder.TrackerConfig
 import com.dominikgruber.scalatorrent.metainfo.MetaInfo
 import spray.client.pipelining._
 import spray.http.Uri.Query
@@ -13,21 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-object HttpTracker {
-  case class SendEventStarted(downloaded: Long, uploaded: Long)
-  case class SendEventStopped(downloaded: Long, uploaded: Long)
-  case class SendEventCompleted(downloaded: Long, uploaded: Long)
-
-  case class TrackerResponseReceived(res: TrackerResponse)
-  case class TrackerConnectionFailed(msg: String)
-
-  object TrackerEvent extends Enumeration {
-    type TrackerEvent = Value
-    val Started, Stopped, Completed = Value
-  }
-}
-
-class HttpTracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor with ActorLogging {
+class HttpTracker(metainfo: MetaInfo, config: TrackerConfig) extends Actor with ActorLogging {
   import HttpTracker._
   import TrackerEvent._
 
@@ -69,14 +56,14 @@ class HttpTracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor
        */
       "info_hash" -> URLEncoder.encode(new String(metainfo.fileInfo.infoHash.toArray, ISO_8859_1), ISO_8859_1.name),
 
-      "peer_id" -> peerId,
+      "peer_id" -> config.peerId,
 
       /**
        * The port number that the client is listening on. Ports reserved for
        * BitTorrent are typically 6881-6889. Clients may choose to give up if it
        * cannot establish a port within this range.
        */
-      "port" -> portIn.toString,
+      "port" -> config.portIn.toString,
 
       /**
        * The total amount uploaded (since the client sent the 'started' event to
@@ -176,5 +163,22 @@ class HttpTracker(metainfo: MetaInfo, peerId: String, portIn: Int) extends Actor
        */
       // "trackerid" -> ""
     )
+  }
+}
+
+object HttpTracker {
+
+  def props(metainfo: MetaInfo, config: TrackerConfig) = Props(classOf[HttpTracker], metainfo, config)
+
+  case class SendEventStarted(downloaded: Long, uploaded: Long)
+  case class SendEventStopped(downloaded: Long, uploaded: Long)
+  case class SendEventCompleted(downloaded: Long, uploaded: Long)
+
+  case class TrackerResponseReceived(res: TrackerResponse)
+  case class TrackerConnectionFailed(msg: String)
+
+  object TrackerEvent extends Enumeration {
+    type TrackerEvent = Value
+    val Started, Stopped, Completed = Value
   }
 }

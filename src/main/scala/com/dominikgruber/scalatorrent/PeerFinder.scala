@@ -4,7 +4,6 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import com.dominikgruber.scalatorrent.PeerFinder._
-import com.dominikgruber.scalatorrent.SelfInfo.selfPeerId
 import com.dominikgruber.scalatorrent.cli.CliActor.ReportPlease
 import com.dominikgruber.scalatorrent.dht.NodeActor
 import com.dominikgruber.scalatorrent.dht.NodeActor.{SearchPeers, StopSearch}
@@ -17,30 +16,12 @@ import com.dominikgruber.scalatorrent.tracker.udp.UdpTracker
 
 import scala.util.matching.Regex
 
-object PeerFinder {
-  case object FindPeers
-  case class PeersFound(addresses: Set[PeerAddress])
-
-  /**
-    * @param counts peer counts per [[PeerStatus]]
-    * @param isActive is actively searching for peers
-    */
-  case class PeersReport(counts: Map[PeerStatus, Int], isActive: Boolean)
-
-  sealed trait PeerStatus
-  case object Connected extends PeerStatus
-  case object Trying extends PeerStatus
-  case object Dead extends PeerStatus
-}
-
 /**
   * Finds peers via trackers (HTTP, UDP) or the DHT
   *
-  * @param peerPortIn: local port listening to BitTorrent messages
-  * @param nodePortIn: local port listening to DHT messages
   * @param torrent: actor interested in finding peers
   */
-case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent: ActorRef) extends Actor with ActorLogging {
+case class PeerFinder(meta: MetaInfo, torrent: ActorRef, config: Config) extends Actor with ActorLogging {
 
   val hash: InfoHash = torrentHash(meta)
 
@@ -118,10 +99,9 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val discardedMsg = s"Discarded $discarded previously known or duplicates."
     log.info(s"$newPeersMsg $discardedMsg")
   }
-  val targetNumPeers = 20 //TODO config
   def knowEnoughPeers: Boolean = {
     val workingPeers = peersKnown.count { case (_, status) => status != PeerFinder.Dead }
-    workingPeers >= targetNumPeers
+    workingPeers >= config.targetNumPeers
   }
 
   def peerCounts: Map[PeerStatus, Int] =
@@ -133,9 +113,11 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     val url: Regex = """(\w+)://(.*):(\d+)""".r
     val props = peerUrl match {
       case url("http", _, _) =>
-        Some(Props(classOf[HttpTracker], meta, selfPeerId, peerPortIn)) //TODO rm selfPeerId param
+        Some(HttpTracker.props(meta, config.tracker))
       case url("udp", host, port) =>
-        Some(Props(classOf[UdpTracker], meta.fileInfo, new InetSocketAddress(host, port.toInt), peerPortIn))
+        val remote = new InetSocketAddress(host, port.toInt)
+        val props = UdpTracker.props(meta.fileInfo, remote, config.tracker)
+        Some(props)
       case _ => None
     }
     val escapedUrl = peerUrl.replaceAll("/", "_")
@@ -145,7 +127,7 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
   }
 
   private def createNodeActor: ActorRef = {
-    val props = Props(classOf[NodeActor], SelfInfo.nodeId, nodePortIn)
+    val props = NodeActor.props(config.node)
     context.actorOf(props, s"dht-node")
   }
 
@@ -163,4 +145,31 @@ case class PeerFinder(meta: MetaInfo, peerPortIn: Int, nodePortIn: Int, torrent:
     }
   }
 
+}
+
+object PeerFinder {
+
+  case class TrackerConfig(peerId: String, portIn: Int)
+  /**
+    * @param targetNumPeers we shall keep searching for peers while we don't have that number of good ones
+    * @param tracker bittorrent protocol config
+    * @param node dht protocol config
+    */
+  case class Config(targetNumPeers: Int, tracker: TrackerConfig, node: NodeActor.Config)
+  def props(meta: MetaInfo, torrent: ActorRef, config: Config) =
+    Props(classOf[PeerFinder], meta, torrent, config)
+
+  case object FindPeers
+  case class PeersFound(addresses: Set[PeerAddress])
+
+  /**
+    * @param counts peer counts per [[PeerStatus]]
+    * @param isActive is actively searching for peers
+    */
+  case class PeersReport(counts: Map[PeerStatus, Int], isActive: Boolean)
+
+  sealed trait PeerStatus
+  case object Connected extends PeerStatus
+  case object Trying extends PeerStatus
+  case object Dead extends PeerStatus
 }

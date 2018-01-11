@@ -13,6 +13,7 @@ import com.dominikgruber.scalatorrent.peerwireprotocol.network.ConnectionManager
 import com.dominikgruber.scalatorrent.peerwireprotocol.network.PeerConnection.SetListener
 import com.dominikgruber.scalatorrent.tracker.Peer
 import com.dominikgruber.scalatorrent.util.{ActorSpec, Mocks}
+import scala.concurrent.duration._
 
 class ConnectionManagerSpec extends ActorSpec {
   outer =>
@@ -31,7 +32,8 @@ class ConnectionManagerSpec extends ActorSpec {
   val tcpConn = TestProbe("tcp-connection")
 
   val connManager: ActorRef = {
-    def createActor = new ConnectionManager(123) {
+    val config = ConnectionManager.Config(123, 0.seconds)
+    def createActor = new ConnectionManager(config) {
       override val coordinator: ActorRef = outer.coordinator.ref
       override val tcpManager: ActorRef = outer.tcpManager.ref
     }

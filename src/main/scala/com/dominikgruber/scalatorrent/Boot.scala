@@ -10,13 +10,14 @@ import scala.language.postfixOps
 object Boot extends App {
 
   val log: Logger = LoggerFactory.getLogger(Boot.getClass)
+  val config = AppConfig.load
 
   sys.addShutdownHook(quit())
 
   // Start actor system and coordinator actor
   val system = ActorSystem("scala-torrent")
-  val cli: ActorRef = system.actorOf(Props(classOf[CliActor]), "cli")
-  val coordinator: ActorRef = system.actorOf(Props(classOf[Coordinator], cli), "coordinator")
+  val cli: ActorRef = system.actorOf(CliActor.props(config.cli), "cli")
+  val coordinator: ActorRef = system.actorOf(Coordinator.props(cli, config.coordinator), "coordinator")
   UserInteraction(cli, coordinator)
 
   def quit(): Unit = {

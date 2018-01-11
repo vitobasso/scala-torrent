@@ -27,7 +27,8 @@ trait NodeActorSpec extends ActorSpec {
     val peerMap: PeerMap = stub[PeerMap]
 
     val nodeActor: ActorRef = {
-      def createActor = new NodeActor(selfNode, 0) {
+      val config = NodeActor.Config(selfNode, 0)
+      def createActor = new NodeActor(config) {
         override val routingTable: RoutingTable = outer.routingTable
         override val peerMap: PeerMap = outer.peerMap
         override lazy val udp: ActorRef = outer.udp.ref
