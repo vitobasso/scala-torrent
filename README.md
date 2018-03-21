@@ -4,13 +4,15 @@ scala-torrent
 A [BitTorrent](http://www.bittorrent.com) client under development in
 [Scala](http://www.scala-lang.org).
 
+![screenshot](screenshot.png)
+
 While looking for a good case to learn [Akka](http://akka.io) I came
 across this project started by [TheDom](https://github.com/TheDom/scala-torrent).
 They did the work from Bencode to Handshakes.
 
 I've been having fun with it since then. Learned some Akka, network
 protocols and Distributed Hash Tables.
-Was also able to download a movie and watch it :)
+I was also able to download a movie and watch it :)
 
 ### Progress
 
