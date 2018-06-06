@@ -24,5 +24,8 @@ http://www.bittorrent.org/beps/bep_0015.html
 http://www.rasterbar.com/products/libtorrent/udp_tracker_protocol.html
 https://en.wikipedia.org/wiki/UDP_tracker
 
+#magnet
+http://bittorrent.org/beps/bep_0009.html
+
 #free torrents
 https://archive.org/

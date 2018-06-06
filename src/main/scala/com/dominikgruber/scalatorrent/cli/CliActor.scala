@@ -19,7 +19,8 @@ case class CliActor(config: Config) extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case Render => // scheduled
-      torrent.foreach(render)
+      torrent.foreach(update)
+      Rendering.render(layout)
     case meta: FileMetaInfo => //from Coordinator
       torrent = Some(Torrent(meta))
     case report: ProgressReport => //from Torrent
@@ -30,11 +31,10 @@ case class CliActor(config: Config) extends Actor with ActorLogging {
       layout = layout.updated(0, response)
   }
 
-  def render(torrent: Torrent) = {
+  def update(torrent: Torrent) = {
     updateMeta(torrent.meta)
     updateProgress(torrent.progress)
     updatePeers(torrent.peers)
-    Rendering.render(layout)
   }
 
   def updateMeta(meta: FileMetaInfo): Unit = {

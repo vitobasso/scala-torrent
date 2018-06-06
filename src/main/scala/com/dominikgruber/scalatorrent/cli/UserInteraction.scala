@@ -13,11 +13,25 @@ case class UserInteraction(cli: ActorRef, coordinator: ActorRef) {
 
   // TMP
   //  addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/ubuntu-12.04.5-desktop-amd64.iso.torrent")
-  //  addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/gimp-2.8.22-x86_64.dmg.torrent")
+//    addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/gimp-2.8.22-x86_64.dmg.torrent")
   addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/sintel.torrent")
   //  addTorrentFile("/Users/victorbasso/Documents/workspace/scala-torrent/src/test/resources/metainfo/CC_1916_07_10_TheVagabond_archive.torrent")
   //  addTorrentFile("/Users/victorbasso/Downloads/no_checksums.torrent")
+  val magnet =
+    """"
+      |magnet:?
+      |xt=urn:btih:59066769b9ad42da2e508611c33d7c4480b3857b&
+      |dn=ubuntu-17.04-desktop-amd64.iso&
+      |tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&
+      |tr=udp%3A%2F%2Fzer0day.ch%3A1337&
+      |tr=udp%3A%2F%2Fopen.demonii.com%3A1337&
+      |tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&
+      |tr=udp%3A%2F%2Fexodus.desync.com%3A6969
+      |""".stripMargin
+
+//  addMagnet()
   // TMP
+
 
   // Listen for commands
   Iterator.continually(TerminalSetup.reader.readLine("> ")).foreach {
